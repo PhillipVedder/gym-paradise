@@ -1,5 +1,4 @@
 'use client';
-import Image from 'next/image';
 import {
   useCallback,
   useEffect,
@@ -48,7 +47,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
+import {
+  GymCustomizer,
+  MachineFinishDialog,
+} from '@/components/gym-customizer';
+import { roomSize } from '@/lib/gym-design';
 import {
   CATALOG,
   DEFAULT_LAYOUT,
@@ -80,11 +83,6 @@ const categories: Category[] = [
   'Cardio',
   'Functional',
 ];
-const themes = [
-  { id: 'violet', name: 'After hours', color: '#b37bfa' },
-  { id: 'cyan', name: 'Electric blue', color: '#53cddc' },
-  { id: 'warm', name: 'Golden hour', color: '#e5bb79' },
-] as const;
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -107,6 +105,9 @@ export default function GymApp() {
   const [category, setCategory] = useState<Category>('All equipment');
   const [search, setSearch] = useState('');
   const [panel, setPanel] = useState<'equipment' | 'style'>('equipment');
+  const [customizerExpanded, setCustomizerExpanded] = useState(false);
+  const [ceilingVisible, setCeilingVisible] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [ready, setReady] = useState(false),
     [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -155,8 +156,17 @@ export default function GymApp() {
     (next: GymLayout) => {
       if (!api.current || !dataReady.current) {
         notify('Your gym is still opening. Try again in a moment.');
-        return;
+        return false;
       }
+      try {
+        next = validateLayout(next);
+      } catch (e) {
+        notify(
+          e instanceof Error ? e.message : 'This change could not be applied.',
+        );
+        return false;
+      }
+      if (JSON.stringify(next) === JSON.stringify(latest.current)) return true;
       history.current.past = [
         ...history.current.past,
         structuredClone(latest.current),
@@ -166,6 +176,7 @@ export default function GymApp() {
       setLayout(next);
       persist(next);
       setHistorySize({ past: history.current.past.length, future: 0 });
+      return true;
     },
     [notify, persist],
   );
@@ -175,7 +186,7 @@ export default function GymApp() {
       const item = current.items.find((i) => i.id === id);
       if (!item || (item.x === x && item.z === z)) return;
       const moved = { ...item, x, z };
-      if (!canPlace(moved, current.items)) {
+      if (!canPlace(moved, current.items, roomSize(current))) {
         notify('Leave a little space around each machine.');
         return;
       }
@@ -254,8 +265,12 @@ export default function GymApp() {
       (category === 'All equipment' || e.category === category) &&
       `${e.name} ${e.detail}`.toLowerCase().includes(search.toLowerCase()),
   );
-  function add(kind: EquipmentKind, collectionId?: string) {
-    const spot = freeSpot(kind, latest.current.items);
+  function add(
+    kind: EquipmentKind,
+    collectionId?: string,
+    finishes?: Pick<NonNullable<typeof item>, 'frameColor' | 'upholsteryColor'>,
+  ) {
+    const spot = freeSpot(kind, latest.current.items, roomSize(latest.current));
     if (!spot) {
       notify(
         latest.current.items.length >= MAX_ITEMS
@@ -268,7 +283,7 @@ export default function GymApp() {
       ...latest.current,
       items: [
         ...latest.current.items,
-        { ...spot, ...(collectionId ? { collectionId } : {}) },
+        { ...spot, ...finishes, ...(collectionId ? { collectionId } : {}) },
       ],
     });
     setSelected(spot.id);
@@ -280,7 +295,7 @@ export default function GymApp() {
       ...item,
       rotation: (item.rotation + Math.PI / 2) % (Math.PI * 2),
     };
-    if (!canPlace(rotated, layout.items)) {
+    if (!canPlace(rotated, layout.items, roomSize(layout))) {
       notify('Move this piece into a clearer space before rotating.');
       return;
     }
@@ -290,7 +305,11 @@ export default function GymApp() {
     });
   }
   function duplicate() {
-    if (item) add(item.kind, item.collectionId);
+    if (item)
+      add(item.kind, item.collectionId, {
+        frameColor: item.frameColor,
+        upholsteryColor: item.upholsteryColor,
+      });
   }
   function remove() {
     if (!item) return;
@@ -515,6 +534,8 @@ export default function GymApp() {
         onClick={() => {
           setMode('build');
           setCleanView(false);
+          setCeilingVisible(false);
+          api.current?.setCeilingVisible(false);
         }}
         aria-pressed={mode === 'build'}
       >
@@ -532,7 +553,16 @@ export default function GymApp() {
     </fieldset>
   );
   return (
-    <main className={`gym-shell ${mode} ${cleanView ? 'clean-view' : ''}`}>
+    <main
+      className={`gym-shell ${mode} ${customizerExpanded ? 'customizer-expanded' : ''} ${cleanView ? 'clean-view' : ''}`}
+    >
+      <MachineFinishDialog
+        item={item}
+        layout={layout}
+        onChange={commit}
+        open={finishOpen}
+        onOpenChange={setFinishOpen}
+      />
       <header className="topbar">
         <div className="brand">
           <span className="brand-symbol">
@@ -597,7 +627,10 @@ export default function GymApp() {
           </div>
           <Tabs
             value={panel}
-            onValueChange={(value) => setPanel(value as 'equipment' | 'style')}
+            onValueChange={(value) => {
+              setPanel(value as 'equipment' | 'style');
+              setCustomizerExpanded(false);
+            }}
             className="library-tabs"
           >
             <TabsList className="library-tab-list">
@@ -607,7 +640,7 @@ export default function GymApp() {
               </TabsTrigger>
               <TabsTrigger value="style">
                 <Paintbrush size={16} />
-                Atmosphere
+                Customise
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -694,7 +727,7 @@ export default function GymApp() {
               <div className="library-footnote">
                 <Layers3 size={15} />
                 <p>
-                  32 original approximate models.
+                  {CATALOG.length} original approximate models.
                   <br />
                   <button onClick={() => openFeatures('research')}>
                     Inspired by real gym research ↗
@@ -703,111 +736,24 @@ export default function GymApp() {
               </div>
             </>
           ) : (
-            <div className="style-panel">
-              <span className="eyebrow">SET THE MOOD</span>
-              <h2>A space with your energy.</h2>
-              <fieldset
-                className="lighting-choices"
-                aria-label="Lighting theme"
-              >
-                {themes.map((t) => (
-                  <button
-                    key={t.id}
-                    className={`theme-choice ${layout.lighting === t.id ? 'chosen' : ''}`}
-                    onClick={() => commit({ ...layout, lighting: t.id })}
-                    aria-pressed={layout.lighting === t.id}
-                  >
-                    <span className={`swatch ${t.id}`} />
-                    <span>{t.name}</span>
-                    {layout.lighting === t.id && <Check size={16} />}
-                  </button>
-                ))}
-              </fieldset>
-              <div className="mural-preview">
-                <Image
-                  width={2172}
-                  height={724}
-                  unoptimized
-                  src={
-                    layout.muralId
-                      ? `/api/media/${layout.muralId}`
-                      : '/art/paradise-mural.png'
-                  }
-                  alt="Statement wall artwork"
-                />
-                <span>PARADISE ORIGINALS / 001</span>
-              </div>
-              <div className="setting-row">
-                <div>
-                  <strong>Statement wall</strong>
-                  <p>Original athlete mural</p>
-                </div>
-                <Switch
-                  checked={layout.mural}
-                  onCheckedChange={(checked) =>
-                    commit({ ...layout, mural: checked })
-                  }
-                  aria-label="Show athlete mural"
-                />
-              </div>
-              <div className="decor-settings">
-                <label className="field-label">
-                  Floor finish
-                  <select
-                    className="text-field"
-                    value={layout.floor || 'rubber'}
-                    onChange={(e) =>
-                      commit({
-                        ...layout,
-                        floor: e.target.value as 'rubber' | 'concrete',
-                      })
-                    }
-                  >
-                    <option value="rubber">Black rubber</option>
-                    <option value="concrete">Light concrete</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  Machine frames
-                  <select
-                    className="text-field"
-                    value={layout.frame || 'graphite'}
-                    onChange={(e) =>
-                      commit({
-                        ...layout,
-                        frame: e.target.value as 'graphite' | 'silver' | 'red',
-                      })
-                    }
-                  >
-                    <option value="graphite">Graphite</option>
-                    <option value="silver">Brushed silver</option>
-                    <option value="red">Deep red</option>
-                  </select>
-                </label>
-                <label className="upload-art">
-                  <Upload size={17} />
-                  {artBusy ? 'Uploading…' : 'Upload wall art'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={artBusy || !storage.loaded}
-                    onChange={(e) => void wallArt(e.target.files?.[0])}
-                  />
-                </label>
-                {layout.muralId && (
-                  <button
-                    className="text-action"
-                    onClick={() => commit({ ...layout, muralId: undefined })}
-                  >
-                    Use Paradise original
-                  </button>
-                )}
-              </div>
-              <p className="style-note">
-                Switch to Explore to see the ceiling lights and feel the room at
-                eye level.
-              </p>
-            </div>
+            <GymCustomizer
+              layout={layout}
+              onChange={commit}
+              enabled={storage.loaded && ready}
+              artBusy={artBusy}
+              uploadArt={(file) => void wallArt(file)}
+              expanded={customizerExpanded}
+              onExpand={() => setCustomizerExpanded((v) => !v)}
+              ceilingVisible={ceilingVisible}
+              onCeiling={(v) => {
+                setCeilingVisible(v);
+                api.current?.setCeilingVisible(v);
+              }}
+              explore={() => {
+                setMode('explore');
+                setCustomizerExpanded(false);
+              }}
+            />
           )}
         </aside>
         <section className="viewport" aria-label="Interactive gym">
@@ -839,8 +785,9 @@ export default function GymApp() {
             <div className="scene-heading">
               <span className="eyebrow">THE WAREHOUSE</span>
               <span>
-                22 × 26 m <span className="dot-separator">·</span>{' '}
-                {layout.items.length} pieces
+                {roomSize(layout).width} × {roomSize(layout).depth} m{' '}
+                <span className="dot-separator">·</span> {layout.items.length}{' '}
+                pieces
               </span>
             </div>
             {modeControls}
@@ -917,6 +864,12 @@ export default function GymApp() {
                 </small>
               </div>
               <div className="selection-actions">
+                <button
+                  onClick={() => setFinishOpen(true)}
+                  aria-label="Customise selected equipment colours"
+                >
+                  <Paintbrush size={17} />
+                </button>
                 <button
                   onClick={() => openFeatures('progress')}
                   aria-label="Open training log for selected machine"

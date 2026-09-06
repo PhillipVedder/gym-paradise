@@ -2,9 +2,22 @@
 
 An aspirational private gym builder for iPhone Safari and laptop browsers, using TypeScript, React, Babylon.js and the Sites/Vinext runtime.
 
+## Room customisation update
+
+- Dimensions: width 6–40 m, length 6–50 m, height 3.5–10 m. Resizing never removes machines; invalid shrinks are rejected. Placement, walking and the camera use the current dimensions.
+- Four adjustable visual presets: After hours, Bright club, Orange iron and Electric blue.
+- Industrial, tiled or open ceilings; suspended LED frames, strips or white panels; accent colour and brightness; optional daylight window panels.
+- Individual wall colours, paint/concrete/brick surfaces, rubber/concrete flooring, floor colour and seams, a mirror on any one wall.
+- Uploadable mural moved to any wall with width, height and vertical-position controls; a custom wall sign with text, colour and wall choice.
+- Movable, resizable coloured turf; default and per-piece frame/upholstery colours. Boxing ring, heavy bag stand, plyometric boxes and accessory storage added.
+- Customisation is validated in browser and Worker, saved with the gym, included in undo/redo and retained in portable layout exports. Existing private media remains account-bound.
+- The Sketchfab creator supplied by the user is documented under Research. Two relevant candidates are not downloadable and return no licence in the public API; no files from that collection are bundled.
+
+The current room remains rectangular, with one mural, one mirror wall and one turf lane. Window panels provide a visual daylight treatment, not openings to a navigable outside world. These controls do not yet include arbitrary floor plans, multiple storeys or custom imported 3D assets.
+
 ## Current experience
 
-- 32 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag/nudge, rotate, duplicate, remove, undo and redo.
+- 36 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag/nudge, rotate, duplicate, remove, undo and redo.
 - Warehouse, original comic mural, mirror wall, physically based metal/upholstery materials, studio reflections, shadow maps, lighting themes, floor and frame finishes, and private custom wall art.
 - First-person keyboard/touch walking with collision checks. Tap nearby equipment to open its training log.
 - A private photo collection with exact real-world brand/model notes and source links. Wishlist records stay linked to similar 3D representations.
@@ -41,8 +54,8 @@ Schemas live in `db/schema.ts`; generated schema-only migrations under `drizzle`
 ## Validation
 
 - `npx tsc --noEmit --incremental false`
-- `node --experimental-strip-types --test tests/*.test.mjs` — 15 checks for placement, import validation, identity retention, safe sharing, label suggestions and comparable workout records.
-- `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
+- `node --experimental-strip-types --test tests/*.test.mjs` — 23 checks for placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
+- `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx components/gym-customizer.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
 - `npm run build`
 - `node --experimental-strip-types tests/api-smoke.mjs` against the local production Worker — private persistence, concurrent-write rejection, image round-trip, ownership isolation, workout records, and invalid requests.
 

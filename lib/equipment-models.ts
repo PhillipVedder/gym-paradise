@@ -69,7 +69,71 @@ export function buildExtraEquipment(kind: EquipmentKind, h: Helpers) {
     plate([x, y, z], 0.16, 0.065, root);
   };
   const hand = (a: number[], v: number[]) => tube(a, v, 0.045, rubber);
-  if (kind === 'smith') {
+  if (kind === 'boxingring') {
+    b([5.1, 0.38, 5.1], [0, 0.21, 0], steel);
+    b([4.95, 0.055, 4.95], [0, 0.43, 0], rubber);
+    for (const x of [-2.4, 2.4])
+      for (const z of [-2.4, 2.4]) {
+        bar([x, 0.25, z], [x, 1.95, z], 0.12, steel);
+        b([0.25, 1.15, 0.25], [x, 1.35, z], rubber);
+      }
+    for (const y of [0.8, 1.12, 1.44, 1.76]) {
+      for (const z of [-2.4, 2.4])
+        tube([-2.4, y, z], [2.4, y, z], 0.045, y > 1.5 ? yellow : silver);
+      for (const x of [-2.4, 2.4])
+        tube([x, y, -2.4], [x, y, 2.4], 0.045, y > 1.5 ? yellow : silver);
+    }
+  } else if (kind === 'punchbag') {
+    base(1.3, 1.5);
+    bar([0, 0.15, 0.6], [0, 2.7, 0.6], 0.15);
+    bar([0, 2.7, 0.6], [0, 2.7, -0.45], 0.14);
+    bar([0, 1.9, 0.6], [0, 2.7, 0.05], 0.08);
+    for (const x of [-0.16, 0.16])
+      tube([0, 2.67, -0.4], [x, 2.2, -0.4], 0.018, silver);
+    const bag = MeshBuilder.CreateCylinder(
+      'heavy bag',
+      { height: 1.35, diameter: 0.55, tessellation: 24 },
+      scene,
+    );
+    bag.position.set(0, 1.52, -0.4);
+    bag.material = rubber;
+    bag.parent = root;
+    for (const y of [0.93, 2.1]) {
+      const band = MeshBuilder.CreateCylinder(
+        'bag trim',
+        { height: 0.06, diameter: 0.558, tessellation: 24 },
+        scene,
+      );
+      band.position.set(0, y, -0.4);
+      band.material = steel;
+      band.parent = root;
+    }
+  } else if (kind === 'plyobox') {
+    for (let i = 0; i < 3; i++) {
+      b([0.72, 0.22, 0.9], [i * 0.23 - 0.23, 0.13 + i * 0.24, 0], rubber);
+      b(
+        [0.24, 0.065, 0.015],
+        [i * 0.23 - 0.23, 0.13 + i * 0.24, -0.46],
+        yellow,
+      );
+    }
+  } else if (kind === 'storage') {
+    for (const x of [-0.96, 0.96])
+      for (const z of [-0.3, 0.3]) bar([x, 0.06, z], [x, 1.7, z], 0.06);
+    for (const y of [0.2, 0.72, 1.25]) {
+      b([2.05, 0.055, 0.7], [0, y, 0], steel);
+      for (let i = 0; i < 4; i++) {
+        const ball = MeshBuilder.CreateSphere(
+          'medicine ball',
+          { diameter: 0.3, segments: 10 },
+          scene,
+        );
+        ball.position.set(-0.73 + i * 0.48, y + 0.18, 0);
+        ball.material = i % 2 ? rubber : yellow;
+        ball.parent = root;
+      }
+    }
+  } else if (kind === 'smith') {
     base(2.1, 1.45);
     for (const x of [-1, 1]) {
       bar([x, 0.14, 0.5], [x, 2.65, 0.5], 0.13);

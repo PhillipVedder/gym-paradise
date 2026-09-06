@@ -180,3 +180,20 @@ export const BRAND_CATALOGUES = [
     detail: 'Strength equipment and manufacturer facility case studies.',
   },
 ] as const;
+
+export const MODEL_CANDIDATES = [
+  {
+    name: 'Hip Thrust Glute Drive Machine',
+    creator: 'Mike · 3D Muscle Model',
+    detail:
+      'Standalone plate-loaded machine · 13,186 triangles. A useful candidate for the hip-thrust collection.',
+    url: 'https://sketchfab.com/3d-models/hip-thrust-glute-drive-machine-plate-loaded-24a2f90f299c456b8668d4b0b0855fb9',
+  },
+  {
+    name: 'Dual Functional Trainer',
+    creator: 'Mike · 3D Muscle Model',
+    detail:
+      'Prime-inspired adjustable cable trainer · 80,228 triangles. Would need a phone performance review before use.',
+    url: 'https://sketchfab.com/3d-models/dual-functional-trainer-gym-fitness-machine-21bc1760bef745f7b4b966727a3733e6',
+  },
+] as const;

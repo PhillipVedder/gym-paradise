@@ -17,8 +17,6 @@ import {
   PointLight,
   TransformNode,
   GlowLayer,
-  MirrorTexture,
-  Plane,
   PBRMaterial,
   ShadowGenerator,
   type Material,
@@ -26,13 +24,14 @@ import {
 } from '@babylonjs/core';
 import {
   EQUIPMENT,
-  ROOM,
   canPlace,
   walkable,
   type EquipmentKind,
   type GymLayout,
   type Mode,
 } from './gym-data';
+import { roomSize, designFor } from './gym-design';
+import { createGymRoom } from './gym-room';
 import { buildExtraEquipment } from './equipment-models';
 type Callbacks = {
   onSelect: (id: string | null) => void;
@@ -137,16 +136,6 @@ export function createGymScene(
     silver = pbr('brushed steel', '#c4ccd1', 0.9, 0.23),
     plates = pbr('rubber coated plates', '#25292f', 0.2, 0.68),
     yellow = pbr('adjustment handles', '#cfb75b', 0.25, 0.42);
-  const wall = material('charcoal walls', '#303139', 0.12),
-    trim = material('roof structure', '#1b2027', 0.3),
-    white = material('white light', '#d8e5ec', 0, '#b6c7d1');
-  const violet = material('violet light', '#b477ed', 0, '#ad4aff');
-  const cyan = material('cyan light', '#73dee9', 0, '#30a8bb');
-  const turfmat = material('violet turf', '#422364', 0.05);
-  const muralmat = new StandardMaterial('original mural', scene);
-  muralmat.diffuseTexture = new Texture('/art/paradise-mural.png', scene);
-  muralmat.emissiveColor = new Color3(0.38, 0.38, 0.38);
-  muralmat.specularColor = Color3.Black();
   const floorMat = material('rubber flooring', '#d0d1d6', 0.08);
   const noise = new DynamicTexture(
     'rubber grain',
@@ -159,17 +148,18 @@ export function createGymScene(
   for (let y = 0; y < 256; y++)
     for (let x = 0; x < 256; x++) {
       seed = (seed * 16807) % 2147483647;
-      const n = 48 + (seed % 21);
+      const n = 175 + (seed % 60);
       ctx.fillStyle = `rgb(${n},${n + 1},${n + 4})`;
       ctx.fillRect(x, y, 1, 1);
     }
   noise.update();
+  noise.wrapU = noise.wrapV = Texture.WRAP_ADDRESSMODE;
   noise.uScale = 18;
   noise.vScale = 22;
   floorMat.diffuseTexture = noise;
   const floor = MeshBuilder.CreateGround(
     'gym floor',
-    { width: ROOM.width, height: ROOM.depth },
+    { width: 1, height: 1 },
     scene,
   );
   floor.material = floorMat;
@@ -266,9 +256,27 @@ export function createGymScene(
     cap.material = silver;
     cap.parent = parent;
   };
-  function equipment(kind: EquipmentKind, id: string) {
+  const equipmentFinishes = new Map<string, PBRMaterial>();
+  function finish(base: PBRMaterial, color: string) {
+    const key = `${base.name}:${color}`;
+    let mat = equipmentFinishes.get(key);
+    if (!mat) {
+      mat = base.clone(key)!;
+      mat.albedoColor = Color3.FromHexString(color);
+      equipmentFinishes.set(key, mat);
+    }
+    return mat;
+  }
+  function equipment(
+    kind: EquipmentKind,
+    id: string,
+    frame: string,
+    upholstery: string,
+  ) {
+    const frameMaterial = finish(steel, frame),
+      padMaterial = finish(rubber, upholstery);
     const root = new TransformNode(id, scene);
-    root.metadata = { kind };
+    root.metadata = { kind, frame, upholstery };
     const b = (size: number[], p: number[], m: Material = steel) =>
       box('frame', size, p, m, root);
     const bar = (
@@ -456,6 +464,10 @@ export function createGymScene(
       }
     }
     const pieces = root.getChildMeshes() as Mesh[];
+    for (const piece of pieces) {
+      if (piece.material === steel) piece.material = frameMaterial;
+      if (piece.material === rubber) piece.material = padMaterial;
+    }
     const groups = new Map<Material, Mesh[]>();
     for (const m of pieces) {
       const mat = m.material as Material;
@@ -463,10 +475,16 @@ export function createGymScene(
       groups.get(mat)!.push(m);
     }
     for (const parts of groups.values()) {
+      const finishRole =
+        parts[0].material === frameMaterial
+          ? 'frame'
+          : parts[0].material === padMaterial
+            ? 'upholstery'
+            : null;
       const merged = Mesh.MergeMeshes(parts, true, true);
       if (merged) {
         merged.parent = root;
-        merged.metadata = { itemId: id };
+        merged.metadata = { itemId: id, finish: finishRole };
         merged.receiveShadows = true;
         shadows.addShadowCaster(merged);
       }
@@ -484,100 +502,7 @@ export function createGymScene(
     root.scaling.setAll(scale);
     return root;
   }
-  // A three-sided room becomes a cutaway in Build. Ceiling structures appear in Explore.
-  const room = new TransformNode('room', scene);
-  const ceiling = new TransformNode('ceiling', scene);
-  box('back wall', [22, 0.2, 26], [0, -0.18, 0], trim, room);
-  box('mural wall', [22, 6, 0.2], [0, 3, 13.08], wall, room);
-  box('left wall', [0.2, 6, 26], [-11.08, 3, 0], wall, room);
-  box('entry wall', [22, 6, 0.2], [0, 3, -13.08], wall, ceiling);
-  box('right wall', [0.2, 6, 26], [11.08, 3, 0], wall, ceiling);
-  const murals: Mesh[] = [];
-  const mural = MeshBuilder.CreatePlane(
-    'athlete mural',
-    { width: 21.7, height: 3.15, sideOrientation: Mesh.DOUBLESIDE },
-    scene,
-  );
-  mural.position.set(0, 4.2, 12.94);
-  mural.material = muralmat;
-  murals.push(mural);
-  const mirrorMat = new StandardMaterial('mirror', scene);
-  mirrorMat.diffuseColor = new Color3(0.1, 0.12, 0.16);
-  mirrorMat.specularColor = new Color3(0.4, 0.4, 0.4);
-  const mirrorTexture = new MirrorTexture(
-    'gym reflection',
-    coarse ? 256 : 512,
-    scene,
-    true,
-  );
-  mirrorTexture.mirrorPlane = new Plane(0, 0, -1, 12.83);
-  mirrorTexture.level = 0.72;
-  mirrorTexture.refreshRate = coarse ? 4 : 2;
-  mirrorMat.reflectionTexture = mirrorTexture;
-  for (let i = 0; i < 11; i++)
-    box(
-      'mirror panel',
-      [1.96, 2.45, 0.035],
-      [-10 + i * 2, 1.35, 12.85],
-      mirrorMat,
-      room,
-    );
-  box('mirror light', [21.8, 0.035, 0.06], [0, 0.12, 12.79], violet, room);
-  box('mural light', [21.8, 0.045, 0.08], [0, 2.68, 12.78], violet, room);
-  box('turf lane', [2, 0.013, 23], [1.7, 0.012, -0.3], turfmat, room);
-  for (let z = -11; z < 12; z += 1) {
-    box('lane marking', [0.25, 0.005, 0.035], [0.87, 0.024, z], white, room);
-    box('lane marking', [0.25, 0.005, 0.035], [2.53, 0.024, z], white, room);
-  }
-  for (let x = -11; x <= 11; x += 2)
-    box('floor seam', [0.018, 0.003, 26], [x, 0.004, 0], trim, room);
-  for (let z = -13; z <= 13; z += 2)
-    box('floor seam', [22, 0.003, 0.018], [0, 0.004, z], trim, room);
-  box('industrial ceiling', [22, 0.12, 26], [0, 6.15, 0], wall, ceiling);
-  for (let z = -12; z < 13; z += 4) {
-    box('roof beam', [22, 0.24, 0.16], [0, 5.85, z], trim, ceiling);
-    box(
-      'neutral ceiling strip',
-      [19, 0.025, 0.045],
-      [0, 5.68, z + 0.25],
-      white,
-      ceiling,
-    );
-  }
-  for (const x of [-7, 0, 7]) {
-    box('longitudinal beam', [0.15, 0.23, 26], [x, 5.85, 0], trim, ceiling);
-    for (const z of [-7, 3]) {
-      box(
-        'led frame',
-        [4.6, 0.04, 0.055],
-        [x, 5.35, z],
-        x === 0 ? cyan : violet,
-        ceiling,
-      );
-      box(
-        'led frame',
-        [4.6, 0.04, 0.055],
-        [x, 5.35, z + 5],
-        x === 0 ? cyan : violet,
-        ceiling,
-      );
-      for (const dx of [-2.3, 2.3])
-        box(
-          'led frame',
-          [0.055, 0.04, 5],
-          [x + dx, 5.35, z + 2.5],
-          x === 0 ? cyan : violet,
-          ceiling,
-        );
-    }
-  }
-  ceiling.setEnabled(false);
-  for (const m of [
-    ...room.getChildMeshes(),
-    ...ceiling.getChildMeshes(),
-    ...murals,
-  ])
-    m.isPickable = false;
+  const room = createGymRoom(scene, coarse);
   const buildCam = new ArcRotateCamera(
     'layout camera',
     -Math.PI / 2.5,
@@ -643,20 +568,46 @@ export function createGymScene(
       footprint.rotation.y = item.rotation;
     }
   }
-  function reflectList() {
-    mirrorTexture.renderList = scene.meshes.filter(
-      (m) =>
-        m !== floor &&
-        m.material !== mirrorMat &&
-        m !== footprint &&
-        !m.name.includes('contact shade') &&
-        !m.name.includes('floor seam'),
-    );
-  }
-  let currentMural = '';
   const api = {
     setLayout(next: GymLayout) {
+      const previousSize = layout ? roomSize(layout) : null;
       layout = next;
+      const size = roomSize(next),
+        design = designFor(next);
+      floor.scaling.set(size.width, 1, size.depth);
+      noise.uScale = size.width * 0.8;
+      noise.vScale = size.depth * 0.8;
+      floorMat.diffuseColor = Color3.FromHexString(design.floorColor);
+      floorMat.specularColor =
+        next.floor === 'concrete'
+          ? new Color3(0.3, 0.3, 0.3)
+          : new Color3(0.08, 0.08, 0.08);
+      rim.diffuse = Color3.FromHexString(design.lightColor);
+      rim.position.set(0, size.height * 0.65, size.depth * 0.38);
+      cool.position.set(
+        size.width * 0.35,
+        size.height * 0.65,
+        -size.depth * 0.2,
+      );
+      cool.diffuse =
+        design.fixtures === 'panels'
+          ? Color3.White()
+          : new Color3(0.15, 0.8, 1);
+      hemi.intensity = 1.15 * design.brightness;
+      key.intensity = 2.5 * design.brightness;
+      rim.intensity = 1.4 * design.brightness;
+      cool.intensity = 0.8 * design.brightness;
+      room.update(next);
+      buildCam.upperRadiusLimit = Math.max(size.width, size.depth) * 2.1;
+      if (
+        !previousSize ||
+        previousSize.width !== size.width ||
+        previousSize.depth !== size.depth
+      ) {
+        buildCam.radius =
+          Math.max(size.width, size.depth) * (coarse ? 1.55 : 1.35);
+        buildCam.setTarget(new Vector3(0, 0, 0));
+      }
       const ids = new Set(next.items.map((i) => i.id));
       for (const [id, node] of objects)
         if (!ids.has(id)) {
@@ -667,6 +618,8 @@ export function createGymScene(
         }
       for (const item of next.items) {
         let node = objects.get(item.id);
+        const frame = item.frameColor || design.frameColor,
+          upholstery = item.upholsteryColor || design.upholsteryColor;
         if (node && node.metadata?.kind !== item.kind) {
           for (const mesh of node.getChildMeshes())
             shadows.removeShadowCaster(mesh);
@@ -675,48 +628,35 @@ export function createGymScene(
           node = undefined;
         }
         if (!node) {
-          node = equipment(item.kind, item.id);
+          node = equipment(item.kind, item.id, frame, upholstery);
           objects.set(item.id, node);
+        }
+        if (
+          node.metadata.frame !== frame ||
+          node.metadata.upholstery !== upholstery
+        ) {
+          for (const mesh of node.getChildMeshes()) {
+            if (mesh.metadata?.finish === 'frame')
+              mesh.material = finish(steel, frame);
+            if (mesh.metadata?.finish === 'upholstery')
+              mesh.material = finish(rubber, upholstery);
+          }
+          node.metadata.frame = frame;
+          node.metadata.upholstery = upholstery;
         }
         node.position.set(item.x, 0, item.z);
         node.rotation.y = item.rotation;
       }
-      const art = next.muralId
-        ? `/api/media/${next.muralId}`
-        : '/art/paradise-mural.png';
-      if (art !== currentMural) {
-        muralmat.diffuseTexture?.dispose();
-        muralmat.diffuseTexture = new Texture(art, scene);
-        currentMural = art;
-      }
-      steel.albedoColor = Color3.FromHexString(
-        next.frame === 'red'
-          ? '#913741'
-          : next.frame === 'silver'
-            ? '#a0abb3'
-            : '#3f454e',
-      );
-      steel.metallic = next.frame === 'silver' ? 0.8 : 0.55;
-      floorMat.diffuseColor = Color3.FromHexString(
-        next.floor === 'concrete' ? '#ffffff' : '#a1a3aa',
-      );
-      floorMat.specularColor =
-        next.floor === 'concrete'
-          ? new Color3(0.3, 0.3, 0.3)
-          : new Color3(0.08, 0.08, 0.08);
-      const color =
-        next.lighting === 'cyan'
-          ? '#42d2dc'
-          : next.lighting === 'warm'
-            ? '#ecc58a'
-            : '#b477ed';
-      violet.diffuseColor = Color3.FromHexString(color);
-      violet.emissiveColor = Color3.FromHexString(color).scale(0.7);
-      rim.diffuse = Color3.FromHexString(color);
-      turfmat.diffuseColor = Color3.FromHexString(color).scale(0.3);
-      murals.forEach((m) => m.setEnabled(next.mural));
+      const usedMaterials = new Set(scene.meshes.map((m) => m.material));
+      for (const [key, mat] of equipmentFinishes)
+        if (!usedMaterials.has(mat)) {
+          mat.dispose();
+          equipmentFinishes.delete(key);
+        }
+      if (!walkable(walkCam.position.x, walkCam.position.z, next.items, size))
+        positionWalker();
       select(selected);
-      reflectList();
+      room.refreshReflections([footprint]);
     },
     setMode(next: Mode) {
       mode = next;
@@ -724,25 +664,23 @@ export function createGymScene(
       joystick = { x: 0, y: 0 };
       looking = null;
       buildCam.detachControl();
-      ceiling.setEnabled(next === 'explore');
+      room.setMode(next);
       scene.activeCamera = next === 'build' ? buildCam : walkCam;
       if (next === 'build') buildCam.attachControl(canvas, true);
       else if (
         layout &&
-        !walkable(walkCam.position.x, walkCam.position.z, layout.items)
-      ) {
-        let found = false;
-        for (let z = -11; z < 12 && !found; z += 1)
-          for (let x = -9; x < 10; x += 1)
-            if (walkable(x, z, layout.items)) {
-              walkCam.position.set(x, 1.72, z);
-              found = true;
-              break;
-            }
-      }
+        !walkable(
+          walkCam.position.x,
+          walkCam.position.z,
+          layout.items,
+          roomSize(layout),
+        )
+      )
+        positionWalker();
       select(selected);
     },
     select,
+    setCeilingVisible: (value: boolean) => room.setCeilingVisible(value),
     joystick(x: number, y: number) {
       joystick = { x, y };
     },
@@ -750,26 +688,20 @@ export function createGymScene(
       if (mode === 'build') {
         buildCam.alpha = -Math.PI / 2.5;
         buildCam.beta = 0.64;
-        buildCam.radius = canvas.clientWidth < 600 ? 40 : 34;
-        buildCam.setTarget(new Vector3(0, 0, 1));
+        buildCam.radius =
+          Math.max(roomSize(layout).width, roomSize(layout).depth) *
+          (coarse ? 1.55 : 1.35);
+        buildCam.setTarget(new Vector3(0, 0, 0));
       } else {
-        if (!layout || walkable(1.7, -11.8, layout.items))
-          walkCam.position.set(1.7, 1.72, -11.8);
-        else {
-          let found = false;
-          for (let z = -11; z < 12 && !found; z++)
-            for (let x = -9; x < 10; x++)
-              if (walkable(x, z, layout.items)) {
-                walkCam.position.set(x, 1.72, z);
-                found = true;
-                break;
-              }
-        }
+        positionWalker();
         walkCam.rotation.set(0, 0, 0);
       }
     },
     zoom(delta: number) {
-      buildCam.radius = Math.max(12, Math.min(47, buildCam.radius + delta));
+      buildCam.radius = Math.max(
+        12,
+        Math.min(buildCam.upperRadiusLimit || 47, buildCam.radius + delta),
+      );
     },
     async capture() {
       scene.render();
@@ -792,6 +724,19 @@ export function createGymScene(
       engine.dispose();
     },
   };
+  function positionWalker() {
+    if (!layout) return;
+    const size = roomSize(layout);
+    for (let z = -size.depth / 2 + 1; z < size.depth / 2 - 0.5; z += 0.5)
+      for (let x = 0; x < size.width; x += 0.5) {
+        const candidateX =
+          x === 0 ? 0 : (Math.ceil(x) * (x % 1 === 0 ? 1 : -1)) / 2;
+        if (walkable(candidateX, z, layout.items, size)) {
+          walkCam.position.set(candidateX, 1.72, z);
+          return;
+        }
+      }
+  }
   function floorPoint(e: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
     return scene.pick(
@@ -858,7 +803,7 @@ export function createGymScene(
       const x = Math.round((p.x - dragging.x) * 2) / 2,
         z = Math.round((p.z - dragging.z) * 2) / 2;
       const node = objects.get(item.id)!;
-      if (canPlace({ ...item, x, z }, layout.items)) {
+      if (canPlace({ ...item, x, z }, layout.items, roomSize(layout))) {
         node.position.x = x;
         node.position.z = z;
         footprint.position.x = x;
@@ -970,8 +915,8 @@ export function createGymScene(
         dz =
           ((Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * dt * 3) / len;
       let { x, z } = walkCam.position;
-      if (walkable(x + dx, z, layout.items)) x += dx;
-      if (walkable(x, z + dz, layout.items)) z += dz;
+      if (walkable(x + dx, z, layout.items, roomSize(layout))) x += dx;
+      if (walkable(x, z + dz, layout.items, roomSize(layout))) z += dz;
       walkCam.position.x = x;
       walkCam.position.z = z;
       if (keys.has('ArrowLeft')) walkCam.rotation.y -= dt * 1.5;
@@ -982,7 +927,10 @@ export function createGymScene(
   const observer = new ResizeObserver(() => {
     engine.resize();
     if (mode === 'build' && canvas.clientWidth < 600)
-      buildCam.radius = Math.max(buildCam.radius, 39);
+      buildCam.radius = Math.max(
+        buildCam.radius,
+        Math.max(roomSize(layout).width, roomSize(layout).depth) * 1.5,
+      );
   });
   observer.observe(canvas);
   engine.runRenderLoop(render);

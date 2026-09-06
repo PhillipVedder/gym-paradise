@@ -1,4 +1,15 @@
+import {
+  validateRoom,
+  validateDesign,
+  validColor,
+  type RoomSize,
+  type GymDesign,
+} from './gym-design.ts';
 export type EquipmentKind =
+  | 'boxingring'
+  | 'punchbag'
+  | 'plyobox'
+  | 'storage'
   | 'smith'
   | 'hack'
   | 'legextension'
@@ -55,9 +66,13 @@ export type PlacedItem = {
   z: number;
   rotation: number;
   collectionId?: string;
+  frameColor?: string;
+  upholsteryColor?: string;
 };
 export type GymLayout = {
   version: 1;
+  room?: RoomSize;
+  design?: GymDesign;
   name: string;
   items: PlacedItem[];
   lighting: 'violet' | 'cyan' | 'warm';
@@ -69,6 +84,43 @@ export type GymLayout = {
 export const ROOM = { width: 22, depth: 26 };
 export const MAX_ITEMS = 40;
 export const CATALOG: Equipment[] = [
+  {
+    kind: 'boxingring',
+    name: 'Boxing ring',
+    category: 'Functional',
+    width: 5.4,
+    depth: 5.4,
+    detail: 'Raised canvas · four ropes · corner pads',
+    tag: 'BOXING',
+  },
+  {
+    kind: 'punchbag',
+    name: 'Heavy bag station',
+    category: 'Functional',
+    width: 1.6,
+    depth: 1.8,
+    detail: 'Steel stand · suspended bag',
+    tag: 'BOXING',
+  },
+  {
+    kind: 'plyobox',
+    name: 'Plyometric boxes',
+    category: 'Functional',
+    width: 1.4,
+    depth: 1.2,
+    detail: 'Three padded jump boxes',
+    tag: 'FUNCTIONAL',
+  },
+  {
+    kind: 'storage',
+    name: 'Accessory storage',
+    category: 'Functional',
+    width: 2.2,
+    depth: 0.8,
+    detail: 'Medicine balls · foam rollers · shelves',
+    tag: 'STORAGE',
+  },
+
   {
     kind: 'smith',
     name: 'Smith machine',
@@ -394,11 +446,15 @@ export function bounds(item: PlacedItem, padding = 0) {
     z: (e.depth * c) / 2 + (e.width * s) / 2 + padding,
   };
 }
-export function canPlace(item: PlacedItem, items: PlacedItem[]) {
+export function canPlace(
+  item: PlacedItem,
+  items: PlacedItem[],
+  room: Pick<RoomSize, 'width' | 'depth'> = ROOM,
+) {
   const a = bounds(item, 0.12);
   if (
-    Math.abs(item.x) + a.x > ROOM.width / 2 - 0.3 ||
-    Math.abs(item.z) + a.z > ROOM.depth / 2 - 0.3
+    Math.abs(item.x) + a.x > room.width / 2 - 0.3 ||
+    Math.abs(item.z) + a.z > room.depth / 2 - 0.3
   )
     return false;
   return !items.some((other) => {
@@ -413,6 +469,7 @@ export function canPlace(item: PlacedItem, items: PlacedItem[]) {
 export function freeSpot(
   kind: EquipmentKind,
   items: PlacedItem[],
+  room: Pick<RoomSize, 'width' | 'depth'> = ROOM,
 ): PlacedItem | null {
   if (items.length >= MAX_ITEMS) return null;
   const draft = {
@@ -422,22 +479,22 @@ export function freeSpot(
     z: 0,
     rotation: 0,
   };
-  for (let z = -5; z < 12; z += 1.5)
-    for (let x = -8; x < 10; x += 1.5) {
+  for (let z = -room.depth / 2 + 1; z < room.depth / 2 - 0.5; z += 0.5)
+    for (let x = -room.width / 2 + 1; x < room.width / 2 - 0.5; x += 0.5) {
       const candidate = { ...draft, x, z };
-      if (canPlace(candidate, items)) return candidate;
-    }
-  for (let z = -11; z < 12; z += 1)
-    for (let x = -9; x < 10; x += 1) {
-      const candidate = { ...draft, x, z };
-      if (canPlace(candidate, items)) return candidate;
+      if (canPlace(candidate, items, room)) return candidate;
     }
   return null;
 }
-export function walkable(x: number, z: number, items: PlacedItem[]) {
+export function walkable(
+  x: number,
+  z: number,
+  items: PlacedItem[],
+  room: Pick<RoomSize, 'width' | 'depth'> = ROOM,
+) {
   if (
-    Math.abs(x) > ROOM.width / 2 - 0.45 ||
-    Math.abs(z) > ROOM.depth / 2 - 0.45
+    Math.abs(x) > room.width / 2 - 0.45 ||
+    Math.abs(z) > room.depth / 2 - 0.45
   )
     return false;
   return !items.some((item) => {
@@ -460,6 +517,8 @@ export function validateLayout(value: unknown): GymLayout {
     typeof d.mural !== 'boolean'
   )
     throw new Error('This layout file is not supported.');
+  const room = validateRoom(d.room);
+  const design = d.design === undefined ? undefined : validateDesign(d.design);
   const ids = new Set<string>();
   const items: PlacedItem[] = [];
   for (const item of d.items) {
@@ -491,7 +550,14 @@ export function validateLayout(value: unknown): GymLayout {
         throw new Error('Invalid collection reference.');
       clean.collectionId = item.collectionId;
     }
-    if (!canPlace(clean, items))
+    for (const key of ['frameColor', 'upholsteryColor'] as const) {
+      if (item[key] !== undefined) {
+        if (!validColor(item[key]))
+          throw new Error('Invalid equipment colour.');
+        clean[key] = item[key];
+      }
+    }
+    if (!canPlace(clean, items, room))
       throw new Error(
         'This layout has overlapping equipment or items outside the room.',
       );
@@ -510,6 +576,8 @@ export function validateLayout(value: unknown): GymLayout {
   return {
     version: 1,
     name: d.name.trim(),
+    room,
+    ...(design ? { design } : {}),
     lighting: d.lighting,
     mural: d.mural,
     items,

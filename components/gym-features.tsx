@@ -33,7 +33,11 @@ import {
   type CollectionItem,
   type WorkoutSet,
 } from '@/lib/gym-records';
-import { GYM_RESEARCH, BRAND_CATALOGUES } from '@/lib/gym-research';
+import {
+  GYM_RESEARCH,
+  BRAND_CATALOGUES,
+  MODEL_CANDIDATES,
+} from '@/lib/gym-research';
 import { BRANDS, matchLabel } from '@/lib/machine-match';
 import { normaliseImage, uploadImage, downloadFile } from '@/lib/media-client';
 type Props = {
@@ -94,6 +98,32 @@ export function GymFeatures(p: Props) {
               inventory or a ranking by business success. Checked 6 September
               2026.
             </p>
+            <h3>3D model candidates</h3>
+            <p className="dialog-note">
+              From your Sketchfab reference: Mike · 3D Muscle Model. These two
+              models are viewable but are not enabled for download, and no reuse
+              licence was returned by Sketchfab on 6 September 2026. They are
+              research links; the room continues to use our original approximate
+              models.
+            </p>
+            <div className="asset-candidates">
+              {MODEL_CANDIDATES.map((model) => (
+                <a
+                  className="asset-candidate"
+                  href={model.url}
+                  key={model.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <strong>{model.name} ↗</strong>
+                  <small>
+                    {model.creator} · {model.detail}
+                  </small>
+                  <span>Download / licence needed</span>
+                </a>
+              ))}
+            </div>
+            <h3>Gym equipment benchmark</h3>
             {GYM_RESEARCH.map((g) => (
               <article key={g.name}>
                 <small>{g.scope}</small>

@@ -1,6 +1,7 @@
 // Runs against the local production Worker; test identities simulate the trusted Sites edge.
 import assert from 'node:assert/strict';
 import { initialState } from '../lib/gym-records.ts';
+import { DEFAULT_DESIGN } from '../lib/gym-design.ts';
 const base = process.env.GYM_TEST_ORIGIN || 'http://localhost:3000';
 if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname))
   throw new Error('These mutation tests must only run locally.');
@@ -24,6 +25,16 @@ assert.equal(r.status, 200);
 assert.deepEqual((await r.json()).state, null);
 const state = initialState();
 state.layout.name = 'API integration fixture';
+state.layout.room = { width: 30, depth: 34, height: 7 };
+state.layout.design = {
+  ...structuredClone(DEFAULT_DESIGN),
+  ceiling: 'tiles',
+  fixtures: 'panels',
+  sign: true,
+  signText: 'TEST PARADISE',
+  frameColor: '#ef7722',
+};
+state.layout.items[0].frameColor = '#ee4455';
 r = await req('/api/state', alice, 'PUT', { revision: 0, state });
 assert.equal(r.status, 200);
 assert.equal((await r.json()).revision, 1);
@@ -60,6 +71,17 @@ assert.equal(
 const loaded = await (await req('/api/state', alice)).json();
 assert.equal(loaded.state.sets[0].weight, 55);
 assert.equal(loaded.revision, 3);
+assert.deepEqual(loaded.state.layout.room, state.layout.room);
+assert.deepEqual(loaded.state.layout.design, state.layout.design);
+assert.equal(loaded.state.layout.items[0].frameColor, '#ee4455');
+const shrunken = structuredClone(state);
+shrunken.layout.room = { width: 6, depth: 6, height: 4 };
+assert.equal(
+  (await req('/api/state', alice, 'PUT', { revision: 3, state: shrunken }))
+    .status,
+  400,
+);
+assert.equal((await (await req('/api/state', alice)).json()).revision, 3);
 state.layout.muralId = 'not-owned';
 assert.equal(
   (await req('/api/state', alice, 'PUT', { revision: 3, state })).status,
