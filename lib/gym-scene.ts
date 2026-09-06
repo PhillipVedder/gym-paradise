@@ -21,9 +21,12 @@ import {
   ShadowGenerator,
   type Material,
   CubeTexture,
+  ImageProcessingConfiguration,
 } from '@babylonjs/core';
 import {
   EQUIPMENT,
+  MAX_ITEMS,
+  type PlacedItem,
   canPlace,
   walkable,
   type EquipmentKind,
@@ -31,9 +34,25 @@ import {
   type Mode,
 } from './gym-data';
 import { roomSize, designFor } from './gym-design';
+import {
+  createBuildNavigation,
+  renderScaling,
+  type BuildTool,
+} from './gym-camera';
 import { createGymRoom } from './gym-room';
 import { buildExtraEquipment } from './equipment-models';
+export type PlacementPreview = {
+  item: PlacedItem;
+  valid: boolean;
+  inside: boolean;
+};
 type Callbacks = {
+  onPlace: (item: PlacedItem) => boolean;
+  onPlacementChange: (preview: PlacementPreview | null) => void;
+  onDragChange: (active: boolean) => void;
+  onTrashHover: (hover: boolean) => void;
+  isOverTrash: (x: number, y: number) => boolean;
+  onDelete: (id: string) => void;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, z: number) => void;
   onReady: () => void;
@@ -56,9 +75,11 @@ export function createGymScene(
     },
     false,
   );
-  engine.setHardwareScalingLevel(
-    Math.max(1, devicePixelRatio / (coarse ? 1.35 : 1.7)),
-  );
+  const updateResolution = () =>
+    engine.setHardwareScalingLevel(
+      renderScaling(canvas.clientWidth, canvas.clientHeight, devicePixelRatio),
+    );
+  updateResolution();
   const scene = new Scene(engine);
   scene.environmentTexture = CubeTexture.CreateFromPrefilteredData(
     '/environments/studio.env',
@@ -67,7 +88,10 @@ export function createGymScene(
   scene.environmentIntensity = 0.65;
   scene.clearColor = new Color4(0.07, 0.08, 0.095, 1);
   scene.ambientColor = new Color3(0.3, 0.3, 0.35);
-  scene.imageProcessingConfiguration.exposure = 1.25;
+  scene.imageProcessingConfiguration.exposure = 1.1;
+  scene.imageProcessingConfiguration.toneMappingEnabled = true;
+  scene.imageProcessingConfiguration.toneMappingType =
+    ImageProcessingConfiguration.TONEMAPPING_ACES;
   scene.imageProcessingConfiguration.contrast = 1.15;
   const hemi = new HemisphericLight(
     'ceiling fill',
@@ -138,22 +162,23 @@ export function createGymScene(
     yellow = pbr('adjustment handles', '#cfb75b', 0.25, 0.42);
   const floorMat = material('rubber flooring', '#d0d1d6', 0.08);
   const noise = new DynamicTexture(
-    'rubber grain',
+    'subtle rubber finish',
     { width: 256, height: 256 },
     scene,
-    false,
+    true,
   );
   const ctx = noise.getContext();
   let seed = 317;
   for (let y = 0; y < 256; y++)
     for (let x = 0; x < 256; x++) {
       seed = (seed * 16807) % 2147483647;
-      const n = 175 + (seed % 60);
+      const n = 225 + (seed % 12);
       ctx.fillStyle = `rgb(${n},${n + 1},${n + 4})`;
       ctx.fillRect(x, y, 1, 1);
     }
   noise.update();
   noise.wrapU = noise.wrapV = Texture.WRAP_ADDRESSMODE;
+  noise.anisotropicFilteringLevel = 8;
   noise.uScale = 18;
   noise.vScale = 22;
   floorMat.diffuseTexture = noise;
@@ -511,13 +536,20 @@ export function createGymScene(
     new Vector3(0, 0, 1),
     scene,
   );
-  buildCam.lowerRadiusLimit = 12;
+  buildCam.lowerRadiusLimit = 3;
   buildCam.upperRadiusLimit = 47;
   buildCam.lowerBetaLimit = 0.25;
   buildCam.upperBetaLimit = 1.1;
   buildCam.pinchPrecision = 50;
   buildCam.wheelPrecision = 16;
   buildCam.panningSensibility = 75;
+  buildCam.inertia = 0;
+  buildCam.inputs.clear();
+  const navigation = createBuildNavigation(buildCam, scene, canvas, () =>
+    roomSize(layout),
+  );
+  let buildTool: BuildTool = 'orbit';
+  let spaceDown = false;
   const walkCam = new UniversalCamera(
     'walk camera',
     new Vector3(1.7, 1.72, -9),
@@ -528,7 +560,7 @@ export function createGymScene(
   walkCam.setTarget(new Vector3(1.7, 1.72, 5));
   walkCam.inputs.clear();
   scene.activeCamera = buildCam;
-  buildCam.attachControl(canvas, true);
+
   const selectionMat = material('selection', '#b374fa', 0, '#6c3693');
   selectionMat.alpha = 0.25;
   const footprint = MeshBuilder.CreateGround(
@@ -552,13 +584,125 @@ export function createGymScene(
   } | null = null;
   let dragging: {
     id: string;
+    pointerId: number;
     x: number;
     z: number;
     lastX: number;
     lastZ: number;
+    valid: boolean;
+    inside: boolean;
+    clientX: number;
+    clientY: number;
   } | null = null;
+  let preview: PlacementPreview | null = null;
+  let previewNode: TransformNode | null = null;
+  let previewPointer: {
+    id: number;
+    x: number;
+    y: number;
+    itemX: number;
+    itemZ: number;
+  } | null = null;
+  let previewKey = '';
+  const previewMat = material('placement guide', '#6de4b0', 0, '#246641');
+  previewMat.alpha = 0.32;
+  const previewFootprint = MeshBuilder.CreateGround(
+    'placement footprint',
+    { width: 1, height: 1 },
+    scene,
+  );
+  previewFootprint.material = previewMat;
+  previewFootprint.isPickable = false;
+  previewFootprint.setEnabled(false);
+  const insideCanvas = (x: number, y: number) => {
+    const r = canvas.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+  function previewChanged() {
+    const value = JSON.stringify(preview);
+    if (value !== previewKey) {
+      previewKey = value;
+      callbacks.onPlacementChange(
+        preview ? { ...preview, item: { ...preview.item } } : null,
+      );
+    }
+  }
+  function refreshPreview() {
+    if (!preview || !previewNode) return;
+    preview.valid =
+      preview.inside &&
+      layout.items.length < MAX_ITEMS &&
+      canPlace(preview.item, layout.items, roomSize(layout));
+    previewNode.position.set(preview.item.x, 0, preview.item.z);
+    previewNode.rotation.y = preview.item.rotation;
+    const e = EQUIPMENT[preview.item.kind];
+    previewFootprint.scaling.set(e.width + 0.3, 1, e.depth + 0.3);
+    previewFootprint.position.set(preview.item.x, 0.03, preview.item.z);
+    previewFootprint.rotation.y = preview.item.rotation;
+    previewMat.diffuseColor = Color3.FromHexString(
+      preview.valid ? '#6de4b0' : '#ed657e',
+    );
+    previewMat.emissiveColor = previewMat.diffuseColor.scale(0.25);
+    previewFootprint.setEnabled(true);
+    previewChanged();
+  }
+  function cancelPlacement() {
+    previewPointer = null;
+    if (previewNode) {
+      for (const mesh of previewNode.getChildMeshes())
+        shadows.removeShadowCaster(mesh);
+      previewNode.dispose(false);
+    }
+    previewNode = null;
+    preview = null;
+    previewFootprint.setEnabled(false);
+    previewChanged();
+    callbacks.onTrashHover(false);
+    room.refreshReflections([footprint, previewFootprint]);
+  }
+  function updatePlacement(clientX: number, clientY: number) {
+    if (!preview) return;
+    const overTrash = callbacks.isOverTrash(clientX, clientY);
+    callbacks.onTrashHover(overTrash);
+    preview.inside = insideCanvas(clientX, clientY) && !overTrash;
+    if (preview.inside) {
+      const point = navigation.ground(clientX, clientY);
+      if (point) {
+        preview.item.x = Math.round(point.x * 2) / 2;
+        preview.item.z = Math.round(point.z * 2) / 2;
+      } else preview.inside = false;
+    }
+    refreshPreview();
+  }
+  function confirmPlacement() {
+    if (!preview?.valid) return false;
+    const item = { ...preview.item };
+    // Validate again against the latest saved layout before committing a single history entry.
+    if (
+      !canPlace(item, layout.items, roomSize(layout)) ||
+      layout.items.length >= MAX_ITEMS
+    )
+      return false;
+    if (!callbacks.onPlace(item)) return false;
+    cancelPlacement();
+    return true;
+  }
+  function cancelMove() {
+    if (!dragging) return;
+    const item = layout.items.find((i) => i.id === dragging!.id);
+    const node = objects.get(dragging.id);
+    if (node && item) {
+      node.position.set(item.x, 0, item.z);
+      for (const m of node.getChildMeshes()) m.visibility = 1;
+    }
+    dragging = null;
+    callbacks.onDragChange(false);
+    callbacks.onTrashHover(false);
+    select(selected);
+  }
   function select(id: string | null) {
     selected = id;
+    selectionMat.diffuseColor = Color3.FromHexString('#b374fa');
     const item = layout?.items.find((i) => i.id === id);
     footprint.setEnabled(!!item && mode === 'build');
     if (item) {
@@ -570,6 +714,7 @@ export function createGymScene(
   }
   const api = {
     setLayout(next: GymLayout) {
+      cancelMove();
       const previousSize = layout ? roomSize(layout) : null;
       layout = next;
       const size = roomSize(next),
@@ -593,12 +738,14 @@ export function createGymScene(
         design.fixtures === 'panels'
           ? Color3.White()
           : new Color3(0.15, 0.8, 1);
-      hemi.intensity = 1.15 * design.brightness;
-      key.intensity = 2.5 * design.brightness;
-      rim.intensity = 1.4 * design.brightness;
-      cool.intensity = 0.8 * design.brightness;
+      hemi.intensity = 0.62 * design.brightness;
+      key.intensity = 1.15 * design.brightness;
+      rim.intensity = 0.45 * design.brightness;
+      cool.intensity = 0.3 * design.brightness;
       room.update(next);
       buildCam.upperRadiusLimit = Math.max(size.width, size.depth) * 2.1;
+      buildCam.maxZ = Math.max(1000, buildCam.upperRadiusLimit * 3);
+      walkCam.maxZ = Math.max(1000, Math.max(size.width, size.depth) * 3);
       if (
         !previousSize ||
         previousSize.width !== size.width ||
@@ -606,7 +753,7 @@ export function createGymScene(
       ) {
         buildCam.radius =
           Math.max(size.width, size.depth) * (coarse ? 1.55 : 1.35);
-        buildCam.setTarget(new Vector3(0, 0, 0));
+        buildCam.setTarget(new Vector3(0, 0, 0), false, false, true);
       }
       const ids = new Set(next.items.map((i) => i.id));
       for (const [id, node] of objects)
@@ -656,9 +803,18 @@ export function createGymScene(
       if (!walkable(walkCam.position.x, walkCam.position.z, next.items, size))
         positionWalker();
       select(selected);
-      room.refreshReflections([footprint]);
+      if (preview) refreshPreview();
+      room.refreshReflections([
+        footprint,
+        previewFootprint,
+        ...(previewNode?.getChildMeshes() || []),
+      ]);
     },
     setMode(next: Mode) {
+      cancelMove();
+      cancelPlacement();
+      navigation.clear();
+      spaceDown = false;
       mode = next;
       keys.clear();
       joystick = { x: 0, y: 0 };
@@ -666,8 +822,8 @@ export function createGymScene(
       buildCam.detachControl();
       room.setMode(next);
       scene.activeCamera = next === 'build' ? buildCam : walkCam;
-      if (next === 'build') buildCam.attachControl(canvas, true);
-      else if (
+      if (
+        next === 'explore' &&
         layout &&
         !walkable(
           walkCam.position.x,
@@ -691,17 +847,78 @@ export function createGymScene(
         buildCam.radius =
           Math.max(roomSize(layout).width, roomSize(layout).depth) *
           (coarse ? 1.55 : 1.35);
-        buildCam.setTarget(new Vector3(0, 0, 0));
+        buildCam.setTarget(new Vector3(0, 0, 0), false, false, true);
       } else {
         positionWalker();
         walkCam.rotation.set(0, 0, 0);
       }
     },
     zoom(delta: number) {
-      buildCam.radius = Math.max(
-        12,
-        Math.min(buildCam.upperRadiusLimit || 47, buildCam.radius + delta),
+      navigation.zoom(Math.exp(delta * 0.08));
+    },
+    setBuildTool(tool: BuildTool) {
+      cancelMove();
+      buildTool = tool;
+      navigation.setTool(tool);
+    },
+    startPlacement(
+      kind: EquipmentKind,
+      options: Partial<
+        Pick<PlacedItem, 'collectionId' | 'frameColor' | 'upholsteryColor'>
+      > = {},
+    ) {
+      if (layout.items.length >= MAX_ITEMS) return false;
+      cancelMove();
+      cancelPlacement();
+      navigation.clear();
+      const d = designFor(layout),
+        r = canvas.getBoundingClientRect();
+      const at =
+        navigation.ground(r.left + r.width / 2, r.top + r.height / 2) ||
+        buildCam.target;
+      const item: PlacedItem = {
+        id: `item-${crypto.randomUUID()}`,
+        kind,
+        x: Math.round(at.x * 2) / 2,
+        z: Math.round(at.z * 2) / 2,
+        rotation: 0,
+        ...options,
+      };
+      previewNode = equipment(
+        kind,
+        'placement-preview',
+        options.frameColor || d.frameColor,
+        options.upholsteryColor || d.upholsteryColor,
       );
+      for (const mesh of previewNode.getChildMeshes()) {
+        mesh.isPickable = false;
+        mesh.visibility = 0.48;
+        mesh.receiveShadows = false;
+        shadows.removeShadowCaster(mesh);
+      }
+      preview = { item, inside: true, valid: false };
+      refreshPreview();
+      select(null);
+      canvas.focus({ preventScroll: true });
+      return true;
+    },
+    updatePlacement,
+    confirmPlacement,
+    cancelPlacement,
+    rotatePlacement() {
+      if (preview) {
+        preview.item.rotation =
+          (preview.item.rotation + Math.PI / 2) % (Math.PI * 2);
+        refreshPreview();
+      }
+    },
+    nudgePlacement(dx: number, dz: number) {
+      if (preview) {
+        preview.inside = true;
+        preview.item.x += dx;
+        preview.item.z += dz;
+        refreshPreview();
+      }
     },
     async capture() {
       scene.render();
@@ -715,6 +932,8 @@ export function createGymScene(
       window.removeEventListener('blur', clearInputs);
       document.removeEventListener('visibilitychange', visibility);
       canvas.removeEventListener('pointerdown', pointerDown);
+      canvas.removeEventListener('wheel', wheel);
+      canvas.removeEventListener('contextmenu', contextMenu);
       canvas.removeEventListener('pointermove', pointerMove);
       canvas.removeEventListener('pointerup', pointerUp);
       canvas.removeEventListener('pointercancel', pointerCancel);
@@ -737,15 +956,8 @@ export function createGymScene(
         }
       }
   }
-  function floorPoint(e: PointerEvent) {
-    const rect = canvas.getBoundingClientRect();
-    return scene.pick(
-      e.clientX - rect.left,
-      e.clientY - rect.top,
-      (m) => m === floor,
-    )?.pickedPoint;
-  }
   function pointerDown(e: PointerEvent) {
+    canvas.focus({ preventScroll: true });
     if (mode === 'explore') {
       if (!looking) {
         looking = {
@@ -760,31 +972,103 @@ export function createGymScene(
       }
       return;
     }
-    if (e.button !== 0) return;
-    const r = canvas.getBoundingClientRect();
-    const hit = scene.pick(
-      e.clientX - r.left,
-      e.clientY - r.top,
-      (m) => !!m.metadata?.itemId,
-    );
-    const id = hit?.pickedMesh?.metadata?.itemId as string | undefined;
-    if (id) {
-      callbacks.onSelect(id);
-      select(id);
-      const item = layout.items.find((i) => i.id === id);
-      const point = floorPoint(e);
-      if (item && point) {
-        dragging = {
-          id,
-          x: point.x - item.x,
-          z: point.z - item.z,
-          lastX: item.x,
-          lastZ: item.z,
-        };
-        buildCam.detachControl();
-        canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    if (preview) {
+      if (previewPointer && previewPointer.id !== e.pointerId) {
+        preview.item.x = previewPointer.itemX;
+        preview.item.z = previewPointer.itemZ;
+        preview.inside = true;
+        refreshPreview();
+        navigation.down(
+          new PointerEvent('pointerdown', {
+            pointerId: previewPointer.id,
+            clientX: previewPointer.x,
+            clientY: previewPointer.y,
+          }),
+          true,
+        );
+        navigation.down(e, true);
+        previewPointer = null;
+      } else if (
+        navigation.active ||
+        buildTool === 'pan' ||
+        spaceDown ||
+        e.button === 1 ||
+        e.button === 2 ||
+        e.shiftKey
+      ) {
+        navigation.down(e, true);
+      } else {
+        if (e.pointerType === 'touch')
+          previewPointer = {
+            id: e.pointerId,
+            x: e.clientX,
+            y: e.clientY,
+            itemX: preview.item.x,
+            itemZ: preview.item.z,
+          };
+        else updatePlacement(e.clientX, e.clientY);
+      }
+      return;
+    }
+    if (dragging && dragging.pointerId !== e.pointerId) {
+      const first = dragging;
+      cancelMove();
+      navigation.down(
+        new PointerEvent('pointerdown', {
+          pointerId: first.pointerId,
+          clientX: first.clientX,
+          clientY: first.clientY,
+        }),
+        true,
+      );
+      navigation.down(e, true);
+      return;
+    }
+    if (navigation.active) {
+      cancelMove();
+      navigation.down(e, spaceDown);
+      return;
+    }
+    const isPan =
+      buildTool === 'pan' ||
+      spaceDown ||
+      e.button === 1 ||
+      e.button === 2 ||
+      e.shiftKey;
+    if (!isPan && e.button === 0) {
+      const r = canvas.getBoundingClientRect();
+      const hit = scene.pick(
+        e.clientX - r.left,
+        e.clientY - r.top,
+        (m) => !!m.metadata?.itemId && m.isPickable,
+      );
+      const id = hit?.pickedMesh?.metadata?.itemId as string | undefined;
+      if (id) {
+        callbacks.onSelect(id);
+        select(id);
+        const item = layout.items.find((i) => i.id === id),
+          point = navigation.ground(e.clientX, e.clientY);
+        if (item && point) {
+          dragging = {
+            id,
+            pointerId: e.pointerId,
+            x: point.x - item.x,
+            z: point.z - item.z,
+            lastX: item.x,
+            lastZ: item.z,
+            valid: true,
+            inside: true,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          };
+          callbacks.onDragChange(true);
+        }
+        return;
       }
     }
+    navigation.down(e, isPan);
   }
   function pointerMove(e: PointerEvent) {
     if (mode === 'explore' && looking?.id === e.pointerId) {
@@ -796,24 +1080,44 @@ export function createGymScene(
       );
       looking.x = e.clientX;
       looking.y = e.clientY;
-    } else if (dragging) {
-      const p = floorPoint(e);
-      const item = layout.items.find((i) => i.id === dragging!.id);
-      if (!p || !item) return;
-      const x = Math.round((p.x - dragging.x) * 2) / 2,
-        z = Math.round((p.z - dragging.z) * 2) / 2;
-      const node = objects.get(item.id)!;
-      if (canPlace({ ...item, x, z }, layout.items, roomSize(layout))) {
-        node.position.x = x;
-        node.position.z = z;
-        footprint.position.x = x;
-        footprint.position.z = z;
+    } else if (mode === 'build' && preview) {
+      if (navigation.active) navigation.move(e);
+      else {
+        if (previewPointer?.id === e.pointerId) {
+          previewPointer.x = e.clientX;
+          previewPointer.y = e.clientY;
+        }
+        updatePlacement(e.clientX, e.clientY);
+      }
+    } else if (dragging?.pointerId === e.pointerId) {
+      dragging.clientX = e.clientX;
+      dragging.clientY = e.clientY;
+      const overTrash = callbacks.isOverTrash(e.clientX, e.clientY);
+      callbacks.onTrashHover(overTrash);
+      dragging.inside = insideCanvas(e.clientX, e.clientY) && !overTrash;
+      const point = navigation.ground(e.clientX, e.clientY),
+        item = layout.items.find((i) => i.id === dragging!.id);
+      if (!point || !item) return;
+      const x = Math.round((point.x - dragging.x) * 2) / 2,
+        z = Math.round((point.z - dragging.z) * 2) / 2;
+      dragging.valid =
+        dragging.inside &&
+        canPlace({ ...item, x, z }, layout.items, roomSize(layout));
+      if (dragging.inside) {
+        objects.get(item.id)?.position.set(x, 0, z);
         dragging.lastX = x;
         dragging.lastZ = z;
+        footprint.position.set(x, 0.036, z);
+        selectionMat.diffuseColor = Color3.FromHexString(
+          dragging.valid ? '#b374fa' : '#ed657e',
+        );
       }
-    }
+      for (const mesh of objects.get(item.id)?.getChildMeshes() || [])
+        mesh.visibility = 0.6;
+    } else if (mode === 'build') navigation.move(e);
   }
   function pointerUp(e: PointerEvent) {
+    if (previewPointer?.id === e.pointerId) previewPointer = null;
     if (looking?.id === e.pointerId) {
       if (looking.moved < 8) {
         const r = canvas.getBoundingClientRect();
@@ -827,29 +1131,79 @@ export function createGymScene(
       }
       looking = null;
     }
-    if (dragging) {
-      callbacks.onMove(dragging.id, dragging.lastX, dragging.lastZ);
-      dragging = null;
-      buildCam.attachControl(canvas, true);
+    if (mode === 'build' && preview && !navigation.active) {
+      updatePlacement(e.clientX, e.clientY);
+      if (callbacks.isOverTrash(e.clientX, e.clientY)) cancelPlacement();
     }
+    if (dragging?.pointerId === e.pointerId) {
+      const finished = { ...dragging },
+        remove = callbacks.isOverTrash(e.clientX, e.clientY);
+      cancelMove();
+      if (remove) callbacks.onDelete(finished.id);
+      else if (finished.valid && finished.inside)
+        callbacks.onMove(finished.id, finished.lastX, finished.lastZ);
+    }
+    navigation.up(e.pointerId);
     if (canvas.hasPointerCapture(e.pointerId))
       canvas.releasePointerCapture(e.pointerId);
   }
   function pointerCancel(e: PointerEvent) {
     looking = null;
-    if (dragging) {
-      const item = layout.items.find((i) => i.id === dragging!.id);
-      if (item) {
-        objects.get(item.id)?.position.set(item.x, 0, item.z);
-        select(selected);
-      }
-      dragging = null;
-      if (mode === 'build') buildCam.attachControl(canvas, true);
-    }
+    cancelMove();
+    navigation.clear();
+    if (preview) cancelPlacement();
     if (canvas.hasPointerCapture(e.pointerId))
       canvas.releasePointerCapture(e.pointerId);
   }
+  function wheel(e: WheelEvent) {
+    if (mode !== 'build') return;
+    e.preventDefault();
+    const factor = Math.exp(
+      Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode === 1 ? 0.03 : 0.0015))),
+    );
+    navigation.zoom(factor, e.clientX, e.clientY);
+    if (preview) updatePlacement(e.clientX, e.clientY);
+  }
+  function contextMenu(e: Event) {
+    e.preventDefault();
+  }
   function keyDown(e: KeyboardEvent) {
+    if (e.code === 'Escape') {
+      cancelPlacement();
+      cancelMove();
+      navigation.clear();
+      return;
+    }
+    if (
+      !document.querySelector('[role="dialog"]') &&
+      preview &&
+      !(e.target as HTMLElement).closest('input,textarea,select')
+    ) {
+      if (e.code === 'Enter') {
+        // Keep native activation on Place, Rotate and Cancel buttons.
+        if ((e.target as HTMLElement).closest('button,a,[role="button"]'))
+          return;
+        e.preventDefault();
+        confirmPlacement();
+        return;
+      }
+      if (e.code === 'KeyR') {
+        e.preventDefault();
+        api.rotatePlacement();
+        return;
+      }
+      const delta = {
+        ArrowLeft: [-0.5, 0],
+        ArrowRight: [0.5, 0],
+        ArrowUp: [0, 0.5],
+        ArrowDown: [0, -0.5],
+      }[e.code];
+      if (delta) {
+        e.preventDefault();
+        api.nudgePlacement(delta[0], delta[1]);
+        return;
+      }
+    }
     if (
       document.querySelector('[role="dialog"]') ||
       (e.target as HTMLElement).closest(
@@ -857,6 +1211,11 @@ export function createGymScene(
       )
     )
       return;
+    if (mode === 'build' && e.code === 'Space') {
+      spaceDown = true;
+      e.preventDefault();
+      return;
+    }
     if (
       mode === 'explore' &&
       [
@@ -875,9 +1234,14 @@ export function createGymScene(
     }
   }
   function keyUp(e: KeyboardEvent) {
+    if (e.code === 'Space') spaceDown = false;
     keys.delete(e.code);
   }
   function clearInputs() {
+    cancelMove();
+    cancelPlacement();
+    navigation.clear();
+    spaceDown = false;
     keys.clear();
     joystick = { x: 0, y: 0 };
     looking = null;
@@ -888,6 +1252,8 @@ export function createGymScene(
     else engine.runRenderLoop(render);
   }
   canvas.addEventListener('pointerdown', pointerDown);
+  canvas.addEventListener('wheel', wheel, { passive: false });
+  canvas.addEventListener('contextmenu', contextMenu);
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', pointerCancel);
@@ -925,12 +1291,8 @@ export function createGymScene(
     scene.render();
   }
   const observer = new ResizeObserver(() => {
+    updateResolution();
     engine.resize();
-    if (mode === 'build' && canvas.clientWidth < 600)
-      buildCam.radius = Math.max(
-        buildCam.radius,
-        Math.max(roomSize(layout).width, roomSize(layout).depth) * 1.5,
-      );
   });
   observer.observe(canvas);
   engine.runRenderLoop(render);

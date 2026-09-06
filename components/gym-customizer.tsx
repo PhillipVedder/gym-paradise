@@ -18,6 +18,7 @@ import {
 import {
   designFor,
   roomSize,
+  MAX_ROOM_DIMENSION,
   WALL_SIDES,
   DESIGN_PRESETS,
   type GymDesign,
@@ -205,7 +206,7 @@ function Dimensions({
               inputMode="decimal"
               required
               min={key === 'height' ? 3.5 : 6}
-              max={key === 'height' ? 10 : key === 'width' ? 40 : 50}
+              max={key === 'height' ? 10 : MAX_ROOM_DIMENSION}
               step="0.5"
               value={Number.isNaN(size[key]) ? '' : size[key]}
               onChange={(e) => {
@@ -226,7 +227,7 @@ function Dimensions({
       </button>
       <output className="custom-hint">
         {message ||
-          'Machines keep their positions. A smaller room must fit everything already inside.'}
+          'Up to 500 m per side. Machines keep their positions; smaller rooms must still fit them.'}
       </output>
     </form>
   );
@@ -459,9 +460,13 @@ export function GymCustomizer({
             options={WALL_SIDES}
             onChange={(v) => set('artWall', v as WallSide)}
           />
-          {range('Artwork width', 'artWidth', 0.2, 1)}
-          {range('Artwork height', 'artHeight', 0.15, 0.65)}
+          {range('Artwork maximum width', 'artWidth', 0.2, 1)}
+          {range('Artwork maximum height', 'artHeight', 0.15, 0.65)}
           {range('Artwork vertical position', 'artPosition', 0, 1)}
+          <p className="custom-hint">
+            Artwork keeps its original proportions inside these limits, even
+            when you resize the room.
+          </p>
           <label className="custom-upload">
             <Upload size={16} />
             {artBusy ? 'Uploading artwork…' : 'Upload your wall art'}

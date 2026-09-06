@@ -29,6 +29,7 @@ export type GymDesign = {
   windows: 'none' | 'left' | 'right' | 'front';
 };
 export const WALL_SIDES: WallSide[] = ['back', 'left', 'right', 'front'];
+export const MAX_ROOM_DIMENSION = 500;
 export const DEFAULT_ROOM: RoomSize = { width: 22, depth: 26, height: 6 };
 export const DEFAULT_DESIGN: GymDesign = {
   wallColors: {
@@ -119,8 +120,8 @@ export function validateRoom(value: unknown): RoomSize {
   if (value === undefined) return { ...DEFAULT_ROOM };
   const d = object(value);
   return {
-    width: number(d.width, 6, 40, 'Room width'),
-    depth: number(d.depth, 6, 50, 'Room length'),
+    width: number(d.width, 6, MAX_ROOM_DIMENSION, 'Room width'),
+    depth: number(d.depth, 6, MAX_ROOM_DIMENSION, 'Room length'),
     height: number(d.height, 3.5, 10, 'Ceiling height'),
   };
 }
@@ -262,3 +263,14 @@ export const DESIGN_PRESETS = [
     },
   },
 ] as const;
+
+/** Fit the entire image inside the chosen wall area, never distort its source aspect ratio. */
+export function fitArtwork(
+  maxWidth: number,
+  maxHeight: number,
+  aspect: number,
+) {
+  const ratio = Number.isFinite(aspect) && aspect > 0 ? aspect : 3;
+  const width = Math.min(maxWidth, maxHeight * ratio);
+  return { width, height: width / ratio };
+}

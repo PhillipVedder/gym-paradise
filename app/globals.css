@@ -2827,3 +2827,212 @@ select.text-field option {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.camera-tools {
+  position: absolute;
+  z-index: 4;
+  left: 20px;
+  top: 108px;
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+  background: #181923ed;
+}
+.camera-tools button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  background: transparent;
+  color: #aaa5b8;
+  border: 0;
+  border-radius: 7px;
+  font-size: 0.78rem;
+}
+.camera-tools button.active {
+  background: #684688;
+  color: #f3e8ff;
+}
+.tool-pan canvas {
+  cursor: grab;
+}
+.tool-pan canvas:active {
+  cursor: grabbing;
+}
+.placing canvas {
+  cursor: crosshair;
+}
+.placement-instructions {
+  color: #b9a8cd;
+  font-size: 0.69rem;
+  line-height: 1.45;
+  margin: 2px 22px 12px;
+}
+.equipment-card {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+}
+.equipment-card:active {
+  cursor: grabbing;
+}
+.placement-toolbar {
+  position: absolute;
+  z-index: 6;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  max-width: calc(100% - 32px);
+  padding: 13px;
+  border: 1px solid #cfadf255;
+  border-radius: 12px;
+  background: #1b1725ee;
+  box-shadow: 0 8px 30px #0004;
+}
+.placement-toolbar strong {
+  font-size: 0.85rem;
+  display: block;
+}
+.placement-toolbar output {
+  display: block;
+  color: #c4bdcf;
+  font-size: 0.72rem;
+  margin-top: 5px;
+}
+.placement-buttons {
+  display: flex;
+  gap: 7px;
+  margin-top: 11px;
+}
+.placement-buttons button {
+  min-height: 42px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #ffffff24;
+  border-radius: 7px;
+  color: #e2d9ed;
+  background: #302839;
+  font-size: 0.76rem;
+}
+.placement-buttons .confirm-placement {
+  flex: 1;
+  background: #b985ed;
+  color: #21132f;
+  font-weight: 600;
+}
+.trash-drop {
+  position: absolute;
+  z-index: 7;
+  right: 20px;
+  bottom: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  width: 126px;
+  min-height: 90px;
+  padding: 14px 8px;
+  border: 2px dashed #c48491;
+  border-radius: 14px;
+  background: #2f1927ef;
+  color: #f9bdce;
+  font-size: 0.72rem;
+}
+.trash-drop.over {
+  background: #9f3554;
+  border-color: #ffe6ed;
+  color: white;
+  transform: scale(1.06);
+}
+.viewport:has(.trash-drop) .zoom-controls,
+.viewport:has(.placement-toolbar) .enter-gym {
+  display: none;
+}
+@media (max-width: 760px) {
+  .equipment-card {
+    touch-action: pan-x;
+  }
+  .placement-instructions {
+    margin: 0 14px 8px;
+    font-size: 0.66rem;
+  }
+  .library:not(:has(.customizer)) {
+    height: 314px;
+  }
+  .camera-tools {
+    left: 12px;
+    top: 68px;
+    padding: 2px;
+  }
+  .camera-tools button {
+    min-height: 40px;
+    padding: 7px 11px;
+    font-size: 0.72rem;
+  }
+  .view-label {
+    display: none;
+  }
+  .placement-toolbar {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    transform: none;
+    width: min(285px, calc(100% - 118px));
+    padding: 10px;
+  }
+  .placement-buttons {
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .placement-buttons button {
+    min-width: 40px;
+    min-height: 44px;
+    padding: 7px 8px;
+  }
+  .placement-buttons button > span {
+    display: none;
+  }
+  .placement-toolbar strong {
+    font-size: 0.75rem;
+  }
+  .placement-toolbar output {
+    font-size: 0.67rem;
+  }
+  .trash-drop {
+    bottom: 12px;
+    right: 12px;
+    width: 88px;
+    min-height: 92px;
+    font-size: 0.65rem;
+  }
+  .viewport:has(.trash-drop) .scene-bottom {
+    display: none;
+  }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .library:not(:has(.customizer)) {
+    height: auto;
+  }
+  .equipment-card {
+    touch-action: pan-y;
+  }
+  .camera-tools {
+    top: 64px;
+  }
+  .placement-toolbar {
+    top: auto;
+    bottom: 10px;
+    width: 260px;
+  }
+}

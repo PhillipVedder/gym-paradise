@@ -80,7 +80,7 @@ test('malformed customisation cannot enter stored state', () => {
       d.room.height = 0;
     },
     (d) => {
-      d.room.depth = 51;
+      d.room.depth = 501;
     },
     (d) => {
       d.design.wallColors.front = 'url(https://example.com)';

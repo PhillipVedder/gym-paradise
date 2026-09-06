@@ -4,20 +4,27 @@ An aspirational private gym builder for iPhone Safari and laptop browsers, using
 
 ## Room customisation update
 
-- Dimensions: width 6–40 m, length 6–50 m, height 3.5–10 m. Resizing never removes machines; invalid shrinks are rejected. Placement, walking and the camera use the current dimensions.
+- Dimensions: width and length 6–500 m, height 3.5–10 m. Resizing never removes machines; invalid shrinks are rejected. Placement, walking and the camera use the current dimensions.
 - Four adjustable visual presets: After hours, Bright club, Orange iron and Electric blue.
 - Industrial, tiled or open ceilings; suspended LED frames, strips or white panels; accent colour and brightness; optional daylight window panels.
 - Individual wall colours, paint/concrete/brick surfaces, rubber/concrete flooring, floor colour and seams, a mirror on any one wall.
-- Uploadable mural moved to any wall with width, height and vertical-position controls; a custom wall sign with text, colour and wall choice.
+- Uploadable mural moved to any wall with width, height and vertical-position controls; images fit within the chosen bounds while preserving their original aspect ratio; a custom wall sign with text, colour and wall choice.
 - Movable, resizable coloured turf; default and per-piece frame/upholstery colours. Boxing ring, heavy bag stand, plyometric boxes and accessory storage added.
 - Customisation is validated in browser and Worker, saved with the gym, included in undo/redo and retained in portable layout exports. Existing private media remains account-bound.
 - The Sketchfab creator supplied by the user is documented under Research. Two relevant candidates are not downloadable and return no licence in the public API; no files from that collection are bundled.
 
 The current room remains rectangular, with one mural, one mirror wall and one turf lane. Window panels provide a visual daylight treatment, not openings to a navigable outside world. These controls do not yet include arbitrary floor plans, multiple storeys or custom imported 3D assets.
 
+## Camera and placement controls
+
+- Build has visible Orbit and Pan tools. Pan moves the view without changing its angles. Two fingers pan/pinch on touch screens; right-drag, Shift-drag or Space-drag pans on a laptop. Scroll zooms toward the cursor; resizing the browser preserves the zoom. Reset view restores the room framing.
+- Drag from the phone catalogue vertically; horizontal swipes continue to browse it. A green footprint marks valid placement, red marks overlaps or room boundaries. Drops outside the canvas discard a new preview; cancelled existing drags restore their original position.
+- Tap a card to preview, tap/drag on the floor to position, then Place. With the canvas focused, arrows move a preview by 0.5 m, R rotates, Enter places and Escape cancels.
+- Rendering uses corrected HiDPI scaling, filtered subtle floor textures, bounded render resolution and balanced lighting to reduce grain and shimmer.
+
 ## Current experience
 
-- 36 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag/nudge, rotate, duplicate, remove, undo and redo.
+- 36 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag a translucent 3D preview from the library, drop onto a clear floor position, or discard into the bin. Tap-to-preview, Place/Rotate/Cancel and keyboard placement are also available. Existing pieces can be dragged into the bin; undo/redo restores changes.
 - Warehouse, original comic mural, mirror wall, physically based metal/upholstery materials, studio reflections, shadow maps, lighting themes, floor and frame finishes, and private custom wall art.
 - First-person keyboard/touch walking with collision checks. Tap nearby equipment to open its training log.
 - A private photo collection with exact real-world brand/model notes and source links. Wishlist records stay linked to similar 3D representations.
@@ -54,9 +61,9 @@ Schemas live in `db/schema.ts`; generated schema-only migrations under `drizzle`
 ## Validation
 
 - `npx tsc --noEmit --incremental false`
-- `node --experimental-strip-types --test tests/*.test.mjs` — 23 checks for placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
+- `node --experimental-strip-types --test tests/*.test.mjs` — 26 checks for camera pan/zoom, HiDPI resolution, aspect-preserving artwork, placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
 - `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx components/gym-customizer.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
 - `npm run build`
 - `node --experimental-strip-types tests/api-smoke.mjs` against the local production Worker — private persistence, concurrent-write rejection, image round-trip, ownership isolation, workout records, and invalid requests.
 
-No browser automation or physical iPhone testing was performed for this update. Asset provenance is in [docs/assets.md](docs/assets.md).
+Desktop Chromium and phone-sized Chromium touch emulation were checked using isolated local test accounts, including drag/drop, preview cancellation, overlap prevention, trash/Undo, two-finger gestures, room resizing and rendering. Physical iPhone Safari testing remains outstanding. Asset provenance is in [docs/assets.md](docs/assets.md).

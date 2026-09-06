@@ -22,6 +22,8 @@ import {
   Dumbbell,
   Expand,
   Footprints,
+  Hand,
+  Orbit,
   Grid2X2,
   Layers3,
   LoaderCircle,
@@ -58,12 +60,12 @@ import {
   EQUIPMENT,
   MAX_ITEMS,
   canPlace,
-  freeSpot,
   validateLayout,
   type Category,
   type EquipmentKind,
   type GymLayout,
   type Mode,
+  type PlacedItem,
 } from '@/lib/gym-data';
 import { useGymStorage } from '@/hooks/use-gym-storage';
 import { GymFeatures } from '@/components/gym-features';
@@ -74,7 +76,8 @@ import {
   type GymState,
   type CollectionItem,
 } from '@/lib/gym-records';
-import type { GymSceneApi } from '@/lib/gym-scene';
+import type { GymSceneApi, PlacementPreview } from '@/lib/gym-scene';
+import type { BuildTool } from '@/lib/gym-camera';
 const categories: Category[] = [
   'All equipment',
   'Machines',
@@ -101,6 +104,19 @@ export default function GymApp() {
   const latest = useRef(layout);
   const [mode, setMode] = useState<Mode>('build');
   const modeRef = useRef(mode);
+  const [buildTool, setBuildTool] = useState<BuildTool>('orbit');
+  const [placement, setPlacement] = useState<PlacementPreview | null>(null);
+  const [draggingItem, setDraggingItem] = useState(false);
+  const [trashHover, setTrashHover] = useState(false);
+  const trashRef = useRef<HTMLButtonElement>(null);
+  const catalogueDrag = useRef<{
+    pointerId: number;
+    kind: EquipmentKind;
+    x: number;
+    y: number;
+    active: boolean;
+  } | null>(null);
+  const suppressClickUntil = useRef(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>('All equipment');
   const [search, setSearch] = useState('');
@@ -138,7 +154,10 @@ export default function GymApp() {
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
   const joystickId = useRef<number | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
-  const notify = useCallback((message: string) => setNotice(message), []);
+  const notify = useCallback(
+    (message: string) => setNotice(message),
+    [setNotice],
+  );
   const storage = useGymStorage((state) => {
     latest.current = state.layout;
     setLayout(state.layout);
@@ -178,7 +197,7 @@ export default function GymApp() {
       setHistorySize({ past: history.current.past.length, future: 0 });
       return true;
     },
-    [notify, persist],
+    [notify, persist, setHistorySize, setLayout],
   );
   const move = useCallback(
     (id: string, x: number, z: number) => {
@@ -198,6 +217,42 @@ export default function GymApp() {
     [commit, notify],
   );
 
+  const place = useCallback(
+    (draft: PlacedItem) => {
+      const current = latest.current;
+      if (
+        !canPlace(draft, current.items, roomSize(current)) ||
+        current.items.length >= MAX_ITEMS
+      )
+        return false;
+      const saved = commit({ ...current, items: [...current.items, draft] });
+      if (saved) {
+        setSelected(draft.id);
+        notify(`${EQUIPMENT[draft.kind].name} placed`);
+      }
+      return saved;
+    },
+    [commit, notify, setSelected],
+  );
+  const deletePlaced = useCallback(
+    (id: string) => {
+      if (
+        commit({
+          ...latest.current,
+          items: latest.current.items.filter((i) => i.id !== id),
+        })
+      ) {
+        setSelected(null);
+        notify('Equipment removed. Undo brings it back.');
+      }
+    },
+    [commit, notify, setSelected],
+  );
+  const isOverTrash = useCallback((x: number, y: number) => {
+    const r = trashRef.current?.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     import('@/lib/gym-scene')
@@ -205,6 +260,12 @@ export default function GymApp() {
         if (cancelled || !canvasRef.current) return;
         const instance = createGymScene(canvasRef.current, {
           onSelect: setSelected,
+          onPlace: place,
+          onPlacementChange: setPlacement,
+          onDragChange: setDraggingItem,
+          onTrashHover: setTrashHover,
+          isOverTrash,
+          onDelete: deletePlaced,
           onMove: move,
           onInspect: (id) => {
             setInspectId(id);
@@ -234,14 +295,22 @@ export default function GymApp() {
       api.current?.dispose();
       api.current = null;
     };
-  }, [move]);
+  }, [move, place, deletePlaced, isOverTrash]);
   useEffect(() => {
     api.current?.setLayout(layout);
   }, [layout]);
   useEffect(() => {
-    modeRef.current = mode;
-    api.current?.setMode(mode);
+    if (modeRef.current !== mode) {
+      modeRef.current = mode;
+      api.current?.setMode(mode);
+    }
   }, [mode]);
+  useEffect(() => {
+    api.current?.setBuildTool(buildTool);
+  }, [buildTool]);
+  useEffect(() => {
+    if (!storage.loaded) api.current?.cancelPlacement();
+  }, [storage.loaded]);
   useEffect(() => {
     api.current?.select(selected);
   }, [selected]);
@@ -268,26 +337,87 @@ export default function GymApp() {
   function add(
     kind: EquipmentKind,
     collectionId?: string,
-    finishes?: Pick<NonNullable<typeof item>, 'frameColor' | 'upholsteryColor'>,
+    finishes?: Pick<PlacedItem, 'frameColor' | 'upholsteryColor'>,
   ) {
-    const spot = freeSpot(kind, latest.current.items, roomSize(latest.current));
-    if (!spot) {
-      notify(
-        latest.current.items.length >= MAX_ITEMS
-          ? 'Your room supports up to 40 pieces. Remove one to add another.'
-          : 'There is no clear space for this piece. Move or remove some equipment first.',
-      );
-      return;
+    if (!ready || !storage.loaded) return false;
+    if (latest.current.items.length >= MAX_ITEMS) {
+      notify('Your room supports up to 40 pieces. Remove one to add another.');
+      return false;
     }
-    commit({
-      ...latest.current,
-      items: [
-        ...latest.current.items,
-        { ...spot, ...finishes, ...(collectionId ? { collectionId } : {}) },
-      ],
-    });
-    setSelected(spot.id);
-    notify(`${EQUIPMENT[kind].name} added`);
+    if (modeRef.current !== 'build') {
+      modeRef.current = 'build';
+      api.current?.setMode('build');
+      setMode('build');
+    }
+    setSelected(null);
+    setPanel('equipment');
+    setFeaturesOpen(false);
+    return (
+      api.current?.startPlacement(kind, {
+        ...finishes,
+        ...(collectionId ? { collectionId } : {}),
+      }) || false
+    );
+  }
+  function catalogueDown(
+    e: ReactPointerEvent<HTMLButtonElement>,
+    kind: EquipmentKind,
+  ) {
+    if (e.button !== 0) return;
+    catalogueDrag.current = {
+      pointerId: e.pointerId,
+      kind,
+      x: e.clientX,
+      y: e.clientY,
+      active: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function catalogueMove(e: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = catalogueDrag.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const dx = Math.abs(e.clientX - drag.x),
+      dy = Math.abs(e.clientY - drag.y);
+    if (!drag.active && Math.hypot(dx, dy) > 8) {
+      // Horizontal swipes still scroll the phone catalogue; drag upward to place a piece.
+      if (e.pointerType === 'touch' && window.innerWidth <= 760 && dx > dy)
+        return;
+      if (!add(drag.kind)) {
+        catalogueDrag.current = null;
+        return;
+      }
+      drag.active = true;
+    }
+    if (drag.active) {
+      e.preventDefault();
+      api.current?.updatePlacement(e.clientX, e.clientY);
+    }
+  }
+  function catalogueUp(e: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = catalogueDrag.current;
+    if (drag?.pointerId === e.pointerId && drag.active) {
+      suppressClickUntil.current = performance.now() + 500;
+      api.current?.updatePlacement(e.clientX, e.clientY);
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const inside =
+        !!rect &&
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (isOverTrash(e.clientX, e.clientY) || !inside)
+        api.current?.cancelPlacement();
+      else api.current?.confirmPlacement();
+    }
+    catalogueDrag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+  }
+  function catalogueCancel(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (catalogueDrag.current?.active) api.current?.cancelPlacement();
+    catalogueDrag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
   }
   function rotate() {
     if (!item) return;
@@ -628,6 +758,7 @@ export default function GymApp() {
           <Tabs
             value={panel}
             onValueChange={(value) => {
+              api.current?.cancelPlacement();
               setPanel(value as 'equipment' | 'style');
               setCustomizerExpanded(false);
             }}
@@ -677,18 +808,29 @@ export default function GymApp() {
                   Research ↗
                 </button>
               </div>
+              <p id="placement-instructions" className="placement-instructions">
+                Drag a piece into your gym, or tap to preview and place.
+              </p>
               <div className="equipment-list">
                 {visible.map((e) => (
                   <button
                     key={e.kind}
                     className={`equipment-card ${item?.kind === e.kind ? 'selected-kind' : ''}`}
-                    onClick={() => add(e.kind)}
+                    onPointerDown={(event) => catalogueDown(event, e.kind)}
+                    onPointerMove={catalogueMove}
+                    onPointerUp={catalogueUp}
+                    onPointerCancel={catalogueCancel}
+                    onClick={() => {
+                      if (performance.now() >= suppressClickUntil.current)
+                        add(e.kind);
+                    }}
                     disabled={
                       !ready ||
                       !storage.loaded ||
                       layout.items.length >= MAX_ITEMS
                     }
-                    aria-label={`Add ${e.name}`}
+                    aria-label={`Preview ${e.name}`}
+                    aria-describedby="placement-instructions"
                   >
                     <div className={`equipment-icon kind-${e.kind}`}>
                       <Dumbbell size={28} strokeWidth={1.1} />
@@ -756,12 +898,15 @@ export default function GymApp() {
             />
           )}
         </aside>
-        <section className="viewport" aria-label="Interactive gym">
+        <section
+          className={`viewport tool-${buildTool} ${placement ? 'placing' : ''}`}
+          aria-label="Interactive gym"
+        >
           <canvas
             ref={canvasRef}
             style={{ pointerEvents: storage.loaded ? 'auto' : 'none' }}
             tabIndex={0}
-            aria-label="3D gym. In Build, drag equipment to move it; drag empty space to orbit. In Explore, use WASD or the movement control. Equipment can also be selected using the Room list."
+            aria-label="3D gym. In Build, choose Orbit or Pan, or drag equipment to move it. Preview a library piece, choose a clear floor position, then Place. Arrow keys adjust a preview, R rotates it and Escape cancels. In Explore, use WASD or the movement control. Equipment can also be selected using the Room list."
           />
           {!ready && !error && (
             <div className="loading">
@@ -783,7 +928,7 @@ export default function GymApp() {
           )}
           <div className="scene-top">
             <div className="scene-heading">
-              <span className="eyebrow">THE WAREHOUSE</span>
+              <span className="eyebrow">YOUR GYM</span>
               <span>
                 {roomSize(layout).width} × {roomSize(layout).depth} m{' '}
                 <span className="dot-separator">·</span> {layout.items.length}{' '}
@@ -833,6 +978,79 @@ export default function GymApp() {
             </button>
           )}
           {mode === 'build' && (
+            <fieldset
+              className="camera-tools"
+              aria-label="Build camera controls"
+            >
+              <button
+                className={buildTool === 'orbit' ? 'active' : ''}
+                aria-pressed={buildTool === 'orbit'}
+                onClick={() => setBuildTool('orbit')}
+              >
+                <Orbit size={16} />
+                Orbit
+              </button>
+              <button
+                className={buildTool === 'pan' ? 'active' : ''}
+                aria-pressed={buildTool === 'pan'}
+                onClick={() => setBuildTool('pan')}
+              >
+                <Hand size={16} />
+                Pan
+              </button>
+            </fieldset>
+          )}
+          {mode === 'build' && placement && (
+            <div className="placement-toolbar">
+              <div>
+                <strong>{EQUIPMENT[placement.item.kind].name}</strong>
+                <output>
+                  {placement.valid
+                    ? 'Ready to place'
+                    : placement.inside
+                      ? 'Leave space around the machine'
+                      : 'Move onto the gym floor'}
+                </output>
+              </div>
+              <div className="placement-buttons">
+                <button
+                  onClick={() => api.current?.rotatePlacement()}
+                  aria-label="Rotate preview 90 degrees"
+                >
+                  <RotateCw size={17} />
+                  <span>Rotate</span>
+                </button>
+                <button
+                  className="confirm-placement"
+                  disabled={!placement.valid}
+                  onClick={() => api.current?.confirmPlacement()}
+                >
+                  <Check size={17} />
+                  Place
+                </button>
+                <button
+                  onClick={() => api.current?.cancelPlacement()}
+                  aria-label="Cancel placement"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+            </div>
+          )}
+          {mode === 'build' && (placement || draggingItem) && (
+            <button
+              ref={trashRef}
+              className={`trash-drop ${trashHover ? 'over' : ''}`}
+              onClick={() => api.current?.cancelPlacement()}
+              aria-label={
+                placement ? 'Discard preview' : 'Drop equipment here to delete'
+              }
+            >
+              <Trash2 size={22} />
+              <span>{placement ? 'Drop to discard' : 'Drop to delete'}</span>
+            </button>
+          )}
+          {mode === 'build' && (
             <div className="zoom-controls">
               <button
                 className="icon-button"
@@ -850,7 +1068,7 @@ export default function GymApp() {
               </button>
             </div>
           )}
-          {mode === 'build' && item && (
+          {mode === 'build' && item && !placement && !draggingItem && (
             <div className="selection-card">
               <div>
                 <span className="eyebrow">SELECTED EQUIPMENT</span>
@@ -977,10 +1195,11 @@ export default function GymApp() {
               {mode === 'build' ? (
                 <>
                   <span className="desktop-hint">
-                    Drag to orbit · scroll to zoom · select a piece to move it
+                    Orbit / Pan · right-drag or Space-drag to pan · scroll to
+                    zoom
                   </span>
                   <span className="mobile-hint">
-                    Drag to orbit · pinch to zoom
+                    Orbit / Pan · two fingers to pan and zoom
                   </span>
                 </>
               ) : (
@@ -1243,9 +1462,12 @@ export default function GymApp() {
               <Grid2X2 />
               <strong>Build</strong>
               <p>
-                Drag empty floor to orbit. Pinch or scroll to zoom. Drag a
-                machine to move it, or select one below and use the arrow
-                buttons.
+                Choose Orbit to turn the view or Pan to slide across the floor.
+                Two fingers pan and pinch to zoom; on a laptop, right-drag or
+                hold Space to pan. Drag equipment from the library to preview
+                and place it. Drop onto the bin to discard or delete; Undo
+                brings a deleted piece back. You can also tap to preview,
+                position it, then choose Place.
               </p>
             </div>
             <div>

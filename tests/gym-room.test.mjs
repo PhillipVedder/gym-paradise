@@ -28,7 +28,7 @@ test('room presets build finite geometry, with a bounded mesh count, at every su
     for (const preset of DESIGN_PRESETS)
       for (const size of [
         { width: 6, depth: 6, height: 3.5 },
-        { width: 40, depth: 50, height: 10 },
+        { width: 500, depth: 500, height: 10 },
       ]) {
         const layout = validateLayout({
           ...DEFAULT_LAYOUT,

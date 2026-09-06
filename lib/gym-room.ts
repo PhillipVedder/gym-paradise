@@ -13,6 +13,7 @@ import {
 } from '@babylonjs/core';
 import {
   designFor,
+  fitArtwork,
   roomSize,
   turfBounds,
   WALL_SIDES,
@@ -39,7 +40,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     'brick finish',
     { width: 256, height: 256 },
     scene,
-    false,
+    true,
   );
   const bc = brick.getContext();
   bc.fillStyle = '#8b8b8b';
@@ -57,7 +58,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     'wall concrete',
     { width: 128, height: 128 },
     scene,
-    false,
+    true,
   );
   const cc = concrete.getContext();
   let seed = 431;
@@ -79,6 +80,8 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
   art.specularColor = Color3.Black();
   art.emissiveColor = new Color3(0.32, 0.32, 0.32);
   let artSource = '';
+  let artAspect = 3;
+  let lastLayout: GymLayout | undefined;
   const signTexture = new DynamicTexture(
     'personal wall sign',
     { width: 2048, height: 256 },
@@ -101,7 +104,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     scene,
     true,
   );
-  reflection.refreshRate = coarse ? 4 : 2;
+  reflection.refreshRate = 1;
   reflection.level = 0.78;
   mirror.reflectionTexture = reflection;
   let roomRoot = new TransformNode('custom room', scene);
@@ -122,17 +125,20 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
         mode === 'build' && showCeiling && opaqueShell ? 0.14 : 1;
     }
   };
-  const refreshReflections = (exclude: AbstractMesh[] = []) => {
+  let reflectionExcludes: AbstractMesh[] = [];
+  const refreshReflections = (exclude?: AbstractMesh[]) => {
+    if (exclude) reflectionExcludes = exclude;
     reflection.renderList = mirrorEnabled
       ? scene.meshes.filter(
           (m) =>
             m.material !== mirror &&
-            !exclude.includes(m) &&
+            !reflectionExcludes.includes(m) &&
             !m.name.includes('floor seam'),
         )
       : [];
   };
   function update(layout: GymLayout) {
+    lastLayout = layout;
     const d = designFor(layout),
       r = roomSize(layout),
       w = r.width,
@@ -159,8 +165,23 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
       : '/art/paradise-mural.png';
     if (src !== artSource) {
       art.diffuseTexture?.dispose();
-      art.diffuseTexture = new Texture(src, scene);
       artSource = src;
+      const texture = new Texture(src, scene);
+      art.diffuseTexture = texture;
+      const resizeArt = () => {
+        if (artSource !== src || !lastLayout || scene.isDisposed) return;
+        const size = texture.getSize();
+        if (size.width && size.height) {
+          const ratio = size.width / size.height;
+          if (Math.abs(ratio - artAspect) > 0.0001) {
+            artAspect = ratio;
+            signature = '';
+            update(lastLayout);
+          }
+        }
+      };
+      texture.onLoadObservable.addOnce(resizeArt);
+      if (texture.isReady()) queueMicrotask(resizeArt);
     }
     const nextSign = `${d.signText}:${d.signColor}`;
     if (nextSign !== signKey) {
@@ -187,6 +208,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
       d.artWidth,
       d.artHeight,
       d.artPosition,
+      artAspect,
       d.turf,
       d.turfWidth,
       d.turfLength,
@@ -280,15 +302,19 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
       panel('wall skirting', side, sideWidth(side), 0.1, 0.08, structure);
     }
     if (d.floorGrid) {
-      for (let x = -w / 2 + 2; x < w / 2; x += 2)
+      for (let x = -w / 2 + 2; x < w / 2; x += Math.max(2, w / 120))
         box('floor seam', [0.015, 0.003, depth], [x, 0.003, 0]);
-      for (let z = -depth / 2 + 2; z < depth / 2; z += 2)
+      for (let z = -depth / 2 + 2; z < depth / 2; z += Math.max(2, depth / 120))
         box('floor seam', [w, 0.003, 0.015], [0, 0.003, z]);
     }
     if (d.turf) {
       const t = turfBounds(r, d);
       box('training turf', [t.width, 0.012, t.depth], [t.x, 0.012, t.z], turf);
-      for (let z = -t.depth / 2 + 0.4; z < t.depth / 2 - 0.1; z += 1)
+      for (
+        let z = -t.depth / 2 + 0.4;
+        z < t.depth / 2 - 0.1;
+        z += Math.max(1, Math.ceil(t.depth / 160))
+      )
         for (const side of [-1, 1])
           box(
             'metre track marking',
@@ -301,7 +327,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     if (d.mirrorWall !== 'none') {
       const side = d.mirrorWall,
         length = sideWidth(side) - 0.2,
-        count = Math.ceil(length / 2),
+        count = Math.min(32, Math.ceil(length / 2)),
         mh = Math.min(2.45, h * 0.42);
       for (let i = 0; i < count; i++)
         panel(
@@ -335,12 +361,17 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
               : new Plane(-1, 0, 0, w / 2 - 0.14);
     }
     if (layout.mural) {
-      const ah = h * d.artHeight,
+      const fitted = fitArtwork(
+        (sideWidth(d.artWall) - 0.3) * d.artWidth,
+        h * d.artHeight,
+        artAspect,
+      );
+      const ah = fitted.height,
         ay = ah / 2 + 0.1 + (h - ah - 0.2) * d.artPosition;
       panel(
         'statement wall art',
         d.artWall,
-        (sideWidth(d.artWall) - 0.3) * d.artWidth,
+        fitted.width,
         ah,
         ay,
         art,
@@ -362,7 +393,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     if (d.windows !== 'none') {
       const side = d.windows,
         length = sideWidth(side),
-        count = Math.max(1, Math.floor(length / 4));
+        count = Math.max(1, Math.min(24, Math.floor(length / 4)));
       for (let i = 0; i < count; i++) {
         const offset = -length / 2 + (length / count) * (i + 0.5);
         panel(
@@ -393,7 +424,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
     panel('entry split', 'front', 0.055, 2.45, 1.325, structure, 0, 0.17);
     if (d.ceiling !== 'open') {
       box('ceiling surface', [w, 0.12, depth], [0, h + 0.07, 0], roof, cutaway);
-      const step = d.ceiling === 'tiles' ? 1.2 : 4;
+      const step = Math.max(d.ceiling === 'tiles' ? 1.2 : 4, depth / 100);
       for (let z = -depth / 2; z <= depth / 2; z += step)
         box(
           'ceiling transverse structure',
@@ -402,7 +433,11 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
           structure,
           cutaway,
         );
-      for (let x = -w / 2; x <= w / 2; x += d.ceiling === 'tiles' ? 1.2 : 5)
+      for (
+        let x = -w / 2;
+        x <= w / 2;
+        x += Math.max(d.ceiling === 'tiles' ? 1.2 : 5, w / 100)
+      )
         box(
           'ceiling longitudinal structure',
           [0.045, d.ceiling === 'tiles' ? 0.025 : 0.2, depth],
@@ -412,7 +447,7 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
         );
       if (d.ceiling === 'industrial') {
         // Corrugated roof seams and ventilation ducts provide scale overhead.
-        for (let x = -w / 2; x < w / 2; x += 0.6)
+        for (let x = -w / 2; x < w / 2; x += Math.max(0.6, w / 120))
           box(
             'roof corrugation',
             [0.025, 0.04, depth],
@@ -434,8 +469,8 @@ export function createGymRoom(scene: Scene, coarse: boolean) {
         }
       }
     }
-    const cols = Math.max(1, Math.floor(w / 6)),
-      rows = Math.max(1, Math.floor(depth / 6));
+    const cols = Math.max(1, Math.min(12, Math.floor(w / 6))),
+      rows = Math.max(1, Math.min(12, Math.floor(depth / 6)));
     for (let col = 0; col < cols; col++)
       for (let row = 0; row < rows; row++) {
         const x = -w / 2 + (w / cols) * (col + 0.5),
