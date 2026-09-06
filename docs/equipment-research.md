@@ -1,0 +1,51 @@
+# Equipment benchmark — Gym Paradise
+
+Researched 6 September 2026. This is a broad first benchmark of major chains, premium clubs and influential bodybuilding/training destinations, not a ranking of profitability or an exhaustive census. “Biggest” can mean clubs, members, revenue or floor area; “most successful” has no single defensible measure here. We use the gyms as equipment and design references, without claiming that their equipment caused commercial success.
+
+| Gym / scope | Evidence from its own published material | Implication for our catalogue |
+| --- | --- | --- |
+| [Fitness Cartel Carrara](https://www.fitnesscartel.com.au/clubs/carrara/) | Technogym and Panatta; free-weight, functional and cardio zones | Premium commercial machines and a broad floor mix; club page does not name exact SKUs |
+| [PureGym UK](https://www.puregym.com/equipment/) | Chest/shoulder presses, pulldowns, leg press, hip abductor, racks, benches; cardio variety | Complete common strength and cardio families; some equipment only at selected gyms |
+| [Planet Fitness](https://www.planetfitness.com/our-clubs) | Smith, cable tower, dual adjustable pulley, free weights; treadmill, elliptical, rower, bikes, stepmill, upper-body ergometer | Guided strength, more cable options and accessible cardio families |
+| [Anytime Fitness Vancouver](https://www.anytimefitness.com/en-ca/locations/vancouver-british-columbia-3247) | Barbells, dumbbells, multifunctional rack, ropes, balls, boxes, bands | Compact mixed-use layouts; this location's list cannot be treated as every Anytime club |
+| [Basic-Fit](https://www.basic-fit.com/en-de/newestequipment.html) | Names Matrix and Technogym | Add these to the brand identification vocabulary; page does not establish machine-level inventory |
+| [Crunch FAQ](https://www.crunch.com/faq) | Platforms, racks, hack squat, leg press, pec fly, preacher curl, pulldowns and cables | Expand both bodybuilding and conventional equipment |
+| [Crunch equipment guide](https://www.crunch.com/thehub/what-equipment-does-crunch-fitness-provide/) | Kettlebells, ropes, sleds, boxes, suspension trainers and medicine balls | Functional area as part of gym identity |
+| [Gold's Gym Venice](https://www.goldsgym.com/locations/ca/venice/) | Free-weight, plate-loaded and machine-weight areas, plus cardio | Bodybuilding layout reference. Page warns some amenity imagery can be from other clubs; no exact model inventory inferred |
+| [Gymshark Lifting Club](https://eu.gymshark.com/blog/article/the-gymshark-lifting-club) | 13 Olympic-grade platforms; squat racks, mirrored free weights, functional zone, walking track, weight machines | Creator tours and warehouse atmosphere, with training zones and clear paths |
+| [Life Time FAQs](https://www.lifetime.life/faq/classes.html) | Newer Technogym versus older Woodway treadmills; Stages cycle equipment | Premium cardio and distinct bike families; check each location for actual inventory |
+| [Bev Francis Powerhouse](https://bevfrancis.com/) | Official tour and equipment spotlights | Specialist bodybuilding reference; exact inventories remain unverified |
+| [Oxygen Gym Bahrain](https://oxygengym.com/facilities.php) | Precor, Atlantis and Hammer Strength | Additional equipment vocabulary. Do not confuse this club with Oxygen Kuwait |
+
+| [World Gym Australia](https://www.worldgym.com.au/) | Official Australian site mentions Panatta, Life Fitness, Cybex and Hammer Strength. Treat this as a brand reference, not a model inventory for every franchise. | Bodybuilding chain · Australia |
+| [Derrimut 24:7](https://www.derrimut247.com.au/pages/derrimut247-equipment) | Official equipment page describes dedicated cardio and strength collections and supplier partnerships, without a readable exact-machine inventory. | Large gym format · Australia |
+| [Revo Fitness · Warwick](https://revofitness.com.au/gyms/warwick/) | Club page lists four squat racks, a dedicated rig, pin-loaded and plate-loaded machines, free weights and cardio. A floor-plan link is also provided. | Specific club · Australia |
+| [Goodlife · Fitzroy](https://www.goodlife.com.au/clubs/fitzroy/) | Club facilities confirm strength equipment, weights, functional training, cardio and a cycle studio. Brands and exact machines are not enumerated. | Specific club · Australia |
+| [24 Hour Fitness](https://www.24hourfitness.com/membership/membership-options/) | Official membership FAQ lists Olympic training rigs, strength machines, dumbbells, kettlebells, sleds, TRX and cardio. Equipment varies by location. | Large chain · US |
+| [LA Fitness](https://www.lafitness.com/Pages/Amenities.aspx) | Official amenities page confirms cardio, dedicated functional turf, racking systems, kettlebells and dumbbells; no complete model inventory is published there. | Large chain · US / Canada |
+| [Virgin Active Australia](https://www.virginactive.com.au/promotions/gym-floor) | Gym-floor page names Technogym and Eleiko, plus plate- and pin-loaded machines, rowers, ski ergs, kettlebells and self-powered treadmills. | Premium chain · Australia |
+| [Smart Fit](https://www.smartfit.com.br/estrutura-smart-fit) | Official equipment overview lists leg press, extension, curl, abduction/adduction, preacher bench, crossover, pec deck, pulldown, seated row, abdominal and back-extension equipment, plus cardio. | Large chain · Latin America |
+| [David Lloyd · Cardiff](https://www.davidlloyd.co.uk/clubs/cardiff/club-facilities/gym/) | Published list includes 21 treadmills, 11 cross trainers, five Wattbikes, two PowerPlates, two Woodway Curve treadmills, cables, free weights and Synrgy360. Counts are location-specific. | Specific premium club · UK |
+| [Equinox · West Hollywood](https://www.equinox.com/landing/west-hollywood-renovations) | Renovation page confirms an opened floor with Technogym, Life Fitness and Hammer Strength equipment, 14 Precision Run Woodway treadmills, Life Fitness ellipticals and upright / recumbent bikes. | Specific premium club · US |
+| [Fitness First Australia](https://www.fitnessfirst.com.au/get-there/3-best-pieces-of-cardio-equipment-at-fitness/) | Official cardio guide specifically describes Technogym Skillbike and Skillmill, alongside cross trainers. It does not establish availability at every club. | Premium chain · Australia |
+| [McFIT](https://www.mcfit.com/training) | Official training page names gym80 strength equipment and cardio brands Ergo-Fit / Concept2, plus functional rigs, cables, air bikes, kettlebells, ropes, boxes and suspension trainers. | Large chain · Europe |
+
+## Equipment coverage implemented in this update
+
+32 distinct equipment types: adjustable bench, power rack, dumbbell rack, chest press, cable station, leg press, pulldown, seated row, Smith, hack squat, leg extension, lying curl, pec deck/rear delt, shoulder press, hip abductor/adductor, seated calf, hip thrust, preacher bench, T-bar row, assisted pull-up/dip, pullover, lateral raise, wide crossover, treadmill, air rower, air bike, stair climber, elliptical, ski trainer, sled, kettlebell rack and belt squat.
+
+These are original approximate visual models. Dimensions are scene-planning footprints, not manufacturer specifications. A combined catalogue entry such as abductor/adductor represents a family and does not assert that every real machine supports both exercises. The specific gym benchmark confirms many common families; specialist additions also draw on manufacturer product categories and the user's desired variety. No complete chain inventory or endorsement is implied.
+
+## Broader catalogue backlog
+
+Separate seated / lying / standing leg curls; horizontal and vertical leg presses; pendulum squat; V-squat; reverse hyper; glute-ham developer; back extension; donkey / standing calf; plate-loaded high and low rows; incline / decline / horizontal presses; lateral / front delt machines; preacher and triceps selectorized machines; dip press; abdominal crunch; torso rotation; glute kickback; multi-jungle cables; fixed barbells; Olympic benches; deadlift platforms; recumbent/upright/spin bikes; curved treadmill; battle ropes; plyometric boxes; medicine balls; suspension trainers; accessible upper-body ergometers. Real models need separate footprints, cable ratios and resistance conventions.
+
+## Exact brand models and the scan workflow
+
+Manufacturer references: [Life Fitness / Hammer Strength catalogue](https://shop.lifefitness.com/collections), [Panatta catalogue](https://www.panattasport.com/en/catalog/), [Atlantis](https://atlantisstrength.com/). These establish product families, not permission to redistribute manufacturer meshes.
+
+Capture a clear full-machine photo plus its product label. Browser OCR suggests brand/type from text; optional browser vision suggests a category. The user confirms the name and model and can save a product-source link. Retain the exact real-world wishlist record while placing a labelled approximate model. Never equate a visual category match with an exact SKU identification or a usable licensed 3D asset.
+
+Free asset candidates were located on author Sketchfab pages with CC Attribution labels: [chest trainer](https://sketchfab.com/3d-models/chest-trainer-78de7bc5ff4646d3ae9f70aa7622daa5), [Body-Solid machine](https://sketchfab.com/3d-models/gym-machine--body-solid-4d1d0fb6879f42a9bccf1666a752c276), [leg press](https://sketchfab.com/3d-models/leg-press-machine-99b9c28dd70d4131918d23f0b58cb14a), [seated row](https://sketchfab.com/3d-models/seated-row-machine-8c1d79d01dff4786a0ce2da6419b3e19), [modular gym set](https://sketchfab.com/3d-models/modular-gym-equipment-bdacdec6abe24670943dea4c16ae1fc4). They have not been downloaded or visually validated. [Sketchfab's download API](https://sketchfab.com/developers/download-api/downloading-models) requires authentication. No third-party model is silently bundled as an exact manufacturer replica.
+
+Next asset pass: obtain authenticated downloads, inspect geometry and textures, preserve creator attribution and license, remove unnecessary meshes, create mobile levels of detail, and record normalized real dimensions. A source URL alone is not proof of a verified match or redistribution permission.

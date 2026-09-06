@@ -14,3 +14,8 @@ Composition/framing: flat orthographic artwork only, wide horizontal 3:1 composi
 Color palette: deep purple and violet with cyan accents, charcoal black shadows, restrained white and pink highlights.
 Lighting/mood: powerful, focused, energetic, visually readable at distance.
 Constraints: original characters only; no existing franchise characters; no text, lettering, logos, signatures, watermarks, UI, mockup, room perspective, gym scene, wall border, or frame. The deliverable is one finished raster artwork, not variations.
+
+
+## Studio reflections
+
+`public/environments/studio.env`: BabylonJS Assets, https://github.com/BabylonJS/Assets/blob/master/environments/studio.env. CC BY 4.0; original license retained at `public/environments/LICENSE.txt`. File used unchanged for physically based material reflections; attribution also appears in the app Research tab. Downloaded 6 September 2026.
