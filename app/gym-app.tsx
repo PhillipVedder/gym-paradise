@@ -54,6 +54,8 @@ import {
   MachineFinishDialog,
 } from '@/components/gym-customizer';
 import { roomSize } from '@/lib/gym-design';
+import { EXAMPLE_LAYOUT } from '@/lib/gym-example';
+import { GymExampleDialog } from '@/components/gym-example-dialog';
 import {
   CATALOG,
   DEFAULT_LAYOUT,
@@ -124,6 +126,7 @@ export default function GymApp() {
   const [customizerExpanded, setCustomizerExpanded] = useState(false);
   const [ceilingVisible, setCeilingVisible] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const [ready, setReady] = useState(false),
     [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -777,6 +780,18 @@ export default function GymApp() {
           </Tabs>
           {panel === 'equipment' ? (
             <>
+              <button
+                className="example-launch"
+                onClick={() => {
+                  api.current?.cancelPlacement();
+                  setExampleOpen(true);
+                }}
+              >
+                <Grid2X2 size={17} />
+                <span>Example gym</span>
+                <small>All {CATALOG.length} types</small>
+                <ArrowUpRight size={16} />
+              </button>
               <label className="search-field">
                 <Search size={17} />
                 <input
@@ -1514,6 +1529,30 @@ export default function GymApp() {
           </button>
         </DialogContent>
       </Dialog>
+      <GymExampleDialog
+        open={exampleOpen}
+        onOpenChange={setExampleOpen}
+        enabled={ready && storage.loaded}
+        onLoad={() => {
+          api.current?.cancelPlacement();
+          if (!commit(structuredClone(EXAMPLE_LAYOUT))) return;
+          setSelected(null);
+          setMode('build');
+          setCeilingVisible(false);
+          setExampleOpen(false);
+          notify('Example gym loaded. Undo returns to your previous layout.');
+        }}
+        onBackup={exportLayout}
+        onDownload={() =>
+          download(
+            new Blob(
+              [JSON.stringify(portableLayout(EXAMPLE_LAYOUT), null, 2)],
+              { type: 'application/json' },
+            ),
+            'paradise-showcase.json',
+          )
+        }
+      />
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent className="gym-dialog">
           <DialogHeader>

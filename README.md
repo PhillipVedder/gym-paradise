@@ -15,6 +15,10 @@ An aspirational private gym builder for iPhone Safari and laptop browsers, using
 
 The current room remains rectangular, with one mural, one mirror wall and one turf lane. Window panels provide a visual daylight treatment, not openings to a navigable outside world. These controls do not yet include arbitrary floor plans, multiple storeys or custom imported 3D assets.
 
+## Example gym
+
+Choose **Example gym** in the equipment library, then **Load example gym**. Paradise showcase is a 32 × 36 m warehouse with all 36 catalogue types, 38 pieces including three benches, six training zones, a clear central walkway, a sled lane, purple lighting and a mirrored mural wall. The dialog includes a floor-plan preview and a portable example download. Loading uses normal layout history and cloud saves; Undo restores the previous layout during the session. Collection and workout data is preserved.
+
 ## Camera and placement controls
 
 - Build has visible Orbit and Pan tools. Pan moves the view without changing its angles. Two fingers pan/pinch on touch screens; right-drag, Shift-drag or Space-drag pans on a laptop. Scroll zooms toward the cursor; resizing the browser preserves the zoom. Reset view restores the room framing.
@@ -61,8 +65,8 @@ Schemas live in `db/schema.ts`; generated schema-only migrations under `drizzle`
 ## Validation
 
 - `npx tsc --noEmit --incremental false`
-- `node --experimental-strip-types --test tests/*.test.mjs` — 26 checks for camera pan/zoom, HiDPI resolution, aspect-preserving artwork, placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
-- `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx components/gym-customizer.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
+- `node --experimental-strip-types --test tests/*.test.mjs` — 28 checks for camera pan/zoom, HiDPI resolution, aspect-preserving artwork, placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
+- `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx components/gym-customizer.tsx components/gym-example-dialog.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
 - `npm run build`
 - `node --experimental-strip-types tests/api-smoke.mjs` against the local production Worker — private persistence, concurrent-write rejection, image round-trip, ownership isolation, workout records, and invalid requests.
 

@@ -3036,3 +3036,121 @@ select.text-field option {
     width: 260px;
   }
 }
+
+.example-launch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 22px 12px;
+  padding: 9px 10px;
+  min-height: 42px;
+  border: 1px solid #8f65b84d;
+  border-radius: 8px;
+  background: #271f33;
+  color: #ecddff;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.example-launch small {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #bfaacd;
+}
+.example-launch:hover {
+  background: #382846;
+  border-color: #b280dc;
+}
+.example-dialog {
+  max-width: 650px;
+}
+.example-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+}
+.example-overview svg {
+  display: block;
+  width: 100%;
+  max-height: 310px;
+}
+.example-zones {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+.example-zones li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.example-zones li > span {
+  font-weight: 700;
+  width: 18px;
+}
+.example-zones strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.example-zones small {
+  display: block;
+  color: #9c93a8;
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+.example-caption,
+.example-replace-note {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #b7aec6;
+}
+.example-caption {
+  margin: 16px 0 0;
+}
+.example-replace-note {
+  margin: 0;
+}
+.example-file-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.example-file-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: #c3add8;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .example-launch {
+    margin: 0 14px 8px;
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+  .library:not(:has(.customizer)) {
+    height: 360px;
+  }
+  .example-overview {
+    gap: 12px;
+  }
+  .example-zones {
+    gap: 10px;
+  }
+  .example-caption {
+    display: none;
+  }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .library:not(:has(.customizer)) {
+    height: auto;
+  }
+}
