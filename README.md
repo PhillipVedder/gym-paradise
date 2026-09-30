@@ -1,73 +1,99 @@
+<div align="center">
+
 # Gym Paradise
 
-An aspirational private gym builder for iPhone Safari and laptop browsers, using TypeScript, React, Babylon.js and the Sites/Vinext runtime.
+**Design your dream gym. Step inside it. Make it yours.**
 
-## Room customisation update
+A browser-based 3D gym builder for people who want to turn their dream training space into something they can explore.
 
-- Dimensions: width and length 6–500 m, height 3.5–10 m. Resizing never removes machines; invalid shrinks are rejected. Placement, walking and the camera use the current dimensions.
-- Four adjustable visual presets: After hours, Bright club, Orange iron and Electric blue.
-- Industrial, tiled or open ceilings; suspended LED frames, strips or white panels; accent colour and brightness; optional daylight window panels.
-- Individual wall colours, paint/concrete/brick surfaces, rubber/concrete flooring, floor colour and seams, a mirror on any one wall.
-- Uploadable mural moved to any wall with width, height and vertical-position controls; images fit within the chosen bounds while preserving their original aspect ratio; a custom wall sign with text, colour and wall choice.
-- Movable, resizable coloured turf; default and per-piece frame/upholstery colours. Boxing ring, heavy bag stand, plyometric boxes and accessory storage added.
-- Customisation is validated in browser and Worker, saved with the gym, included in undo/redo and retained in portable layout exports. Existing private media remains account-bound.
-- The Sketchfab creator supplied by the user is documented under Research. Two relevant candidates are not downloadable and return no licence in the public API; no files from that collection are bundled.
+[![CI](https://github.com/PhillipVedder/gym-paradise/actions/workflows/ci.yml/badge.svg)](https://github.com/PhillipVedder/gym-paradise/actions/workflows/ci.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Babylon.js](https://img.shields.io/badge/3D-Babylon.js-BB464B)
 
-The current room remains rectangular, with one mural, one mirror wall and one turf lane. Window panels provide a visual daylight treatment, not openings to a navigable outside world. These controls do not yet include arbitrary floor plans, multiple storeys or custom imported 3D assets.
+[Try locally](#try-it-locally) · [Architecture](docs/architecture.md) · [Development](docs/development.md) · [Roadmap](docs/roadmap.md)
 
-## Example gym
+</div>
 
-Choose **Example gym** in the equipment library, then **Load example gym**. Paradise showcase is a 32 × 36 m warehouse with all 36 catalogue types, 38 pieces including three benches, six training zones, a clear central walkway, a sled lane, purple lighting and a mirrored mural wall. The dialog includes a floor-plan preview and a portable example download. Loading uses normal layout history and cloud saves; Undo restores the previous layout during the session. Collection and workout data is preserved.
+![Gym Paradise editor showing the complete equipment showcase](docs/images/build.jpg)
 
-## Camera and placement controls
+## Why I built this
 
-- Build has visible Orbit and Pan tools. Pan moves the view without changing its angles. Two fingers pan/pinch on touch screens; right-drag, Shift-drag or Space-drag pans on a laptop. Scroll zooms toward the cursor; resizing the browser preserves the zoom. Reset view restores the room framing.
-- Drag from the phone catalogue vertically; horizontal swipes continue to browse it. A green footprint marks valid placement, red marks overlaps or room boundaries. Drops outside the canvas discard a new preview; cancelled existing drags restore their original position.
-- Tap a card to preview, tap/drag on the floor to position, then Place. With the canvas focused, arrows move a preview by 0.5 m, R rotates, Enter places and Escape cancels.
-- Rendering uses corrected HiDPI scaling, filtered subtle floor textures, bounded render resolution and balanced lighting to reduce grain and shimmer.
+I'm a computer science graduate and a gym enthusiast. Owning a private gym is a long-term ambition; Gym Paradise lets me design and walk through that space now. The idea grew into an engineering project spanning interactive 3D graphics, touch controls, validated layout editing, private persistence, and browser-based machine recognition experiments.
 
-## Current experience
+The aim is a space that feels personal: choose the equipment, arrange the room, set the lighting and wall art, then step inside for a first-person tour.
 
-- 36 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag a translucent 3D preview from the library, drop onto a clear floor position, or discard into the bin. Tap-to-preview, Place/Rotate/Cancel and keyboard placement are also available. Existing pieces can be dragged into the bin; undo/redo restores changes.
-- Warehouse, original comic mural, mirror wall, physically based metal/upholstery materials, studio reflections, shadow maps, lighting themes, floor and frame finishes, and private custom wall art.
-- First-person keyboard/touch walking with collision checks. Tap nearby equipment to open its training log.
-- A private photo collection with exact real-world brand/model notes and source links. Wishlist records stay linked to similar 3D representations.
-- On-demand Tesseract OCR and optional CLIP machine-category suggestions in a browser worker. Model downloads happen only when requested. User confirmation is required; no exact SKU or licensed-mesh search is fabricated. No paid AI API key is needed.
-- Workout records, date, kg/lb, reps, exercise/settings, last set, maximum logged load, daily load chart and JSON export. Comparisons stay within machine, exercise and unit.
-- D1 saves for layout, collection and training; R2 private photo bytes with ownership metadata. The trusted Sites user header scopes every request. Optimistic revisions reject concurrent overwrites. Browser storage holds recoverable drafts and supports migration from the previous local layout.
-- Photos, clean first-person tour mode, and capability-detected video downloads (up to 60 seconds; MP4/WebM depending on browser). Manual screen recording remains the fallback.
-- Shareable layout files strip private photo and collection references. Separate private account backups preserve records and account-bound image references.
-- In-app Research tab and [equipment benchmark](docs/equipment-research.md) cover 23 gym chains/destinations, with primary sources and explicit inventory limitations.
+## What you can do
 
-## Current boundaries
+- **Build a gym:** choose from 36 equipment types, preview placements in 3D, rotate and move pieces, and undo changes. Placement checks prevent overlaps and out-of-bounds layouts.
+- **Make it yours:** edit room dimensions, wall and floor finishes, ceiling style, lighting, mirrors, murals, signs, turf, and machine colours.
+- **Explore and capture:** switch to first-person navigation, take screenshots, and record a tour where the browser supports it.
+- **Collect real-world inspiration:** save equipment photos, brand/model notes, and a wishlist linked to similar virtual machines. Optional OCR and image-category suggestions assist manual identification.
+- **Track training:** record sets, reps, load, units, and machine settings; compare records within the same machine, exercise, and unit.
+- **Save and export:** private account storage, recoverable browser drafts, conflict detection, and portable layouts that omit private photo references.
 
-These are improved original visual approximations, not verified manufacturer replicas or accurate purchasing footprints. Automatic exact-machine identification and licensed exact-model retrieval need a verified brand/model catalogue and an asset pipeline. Account-authenticated Sketchfab candidates are documented, but no third-party machine model is bundled. Public visitor links, social profiles and published tour feeds are not enabled. The hosted site remains private.
+<table>
+<tr>
+<td width="70%"><img src="docs/images/explore.jpg" alt="First-person view of the gym's equipment and lighting" /></td>
+<td width="30%"><img src="docs/images/mobile.jpg" alt="Phone-sized gym editor with equipment catalogue and touch controls" /></td>
+</tr>
+<tr><td>First-person exploration</td><td>Phone-sized layout</td></tr>
+</table>
 
-Cloud saves load when the app opens. An open second device detects conflicting writes instead of silently overwriting them; refresh to read its newest cloud save. Keep a private backup before replacing a conflicting draft. Videos are exported, not retained in a cloud gallery. A private backup references images in the same account; it does not embed their bytes.
+Screenshots show the actual local application and its built-in showcase. The phone image is a Chromium touch emulation, not evidence of physical iPhone testing.
 
-Real iPhone validation is still required for graphics speed, memory pressure, camera formats, OCR / CLIP downloads, and Safari MediaRecorder. Static checks and local API tests do not establish device compatibility. The CLIP worker and its approximately 22.5 MB WASM runtime are lazy loaded; model weights require a substantial separate first download. Weak devices may need manual type selection. Research confirms published examples, not every branch's complete inventory or commercial success.
+## Try it locally
 
-## Development
+Use **Node.js 22.13+ within the 22.x release line** and npm. No paid API key, cloud account, or database installation is needed. Internet access is needed to install dependencies; optional recognition tools download models when requested.
 
-Requires Node.js 22.13+. `npm ci`, then `npm run dev -- --host 0.0.0.0` starts the frontend. Account-dependent requests require the Sites edge identity. Do not add a production fallback identity. For local API tests, requests explicitly supply test identities to simulate the trusted edge.
+```bash
+git clone https://github.com/PhillipVedder/gym-paradise.git
+cd gym-paradise
+npm ci
+npm run demo
+```
 
-Production-like local API check:
+Open **http://127.0.0.1:3000**. Choose **Example gym → Load example gym** to explore all 36 catalogue types in a 38-piece warehouse layout. Try dragging a machine from the library, change the lighting in Customise, then switch to Explore.
 
-1. `npm run build`
-2. `npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file drizzle/0000_goofy_the_stranger.sql`
-3. `npm run start -- --port 3000`
-4. `node --experimental-strip-types tests/api-smoke.mjs`
+The command builds the app, applies migrations to local emulated storage, and starts a local demo account. Saves stay in `.wrangler/demo`. Stop with Ctrl+C. See [development instructions](docs/development.md) for controls, troubleshooting, and the hosted authentication boundary.
 
-Default Wrangler state for that config is under `dist/server/.wrangler`; a rebuild clears it. Use a consistent explicit `--persist-to` path for longer local testing. Never apply the fixture script to the hosted site; the script rejects non-loopback origins.
+**Status:** working prototype under active development. The hosted deployment is private; the local demo is the review path for this public source repository.
 
-Schemas live in `db/schema.ts`; generated schema-only migrations under `drizzle` are packaged by Sites. Applied migrations must not be rewritten. Server queries use prepared statements through `lib/server-store.ts`; tables are never created at request time.
+## Engineering highlights
 
-## Validation
+| Challenge                           | Implementation                                                                                             | Evidence                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Predictable 3D editing              | Shared layout validation, preview placement, room bounds, overlap checks, and undo/redo                    | [Layout logic](lib/gym-data.ts), [tests](tests/gym-data.test.mjs)                |
+| Comfortable navigation              | Separate orbit/pan tools, cursor-centred zoom, touch gestures, and bounded render resolution               | [Camera maths](lib/gym-camera.ts), [tests](tests/gym-camera.test.mjs)            |
+| Safe saves across devices           | Revision-based conditional writes reject stale updates instead of overwriting them                         | [State API](app/api/state/route.ts), [integration checks](tests/api-smoke.mjs)   |
+| Private photos and portable layouts | Owner-scoped media access; shared exports remove private references                                        | [Storage boundary](lib/server-store.ts), [record validation](lib/gym-records.ts) |
+| Responsive optional recognition     | Lazy-loaded OCR and image-category inference; image inference runs in a worker and needs user confirmation | [Matching](lib/machine-match.ts), [worker](workers/machine-vision.ts)            |
+| Maintainable room graphics          | Geometry lifecycle tests check disposal, finite bounds, and mirror planes without needing a GPU            | [Room tests](tests/gym-room.test.mjs)                                            |
 
-- `npx tsc --noEmit --incremental false`
-- `node --experimental-strip-types --test tests/*.test.mjs` — 28 checks for camera pan/zoom, HiDPI resolution, aspect-preserving artwork, placement, room resizing, customisation, mesh lifecycle, mirror planes, import validation, identity retention, safe sharing and comparable workout records.
-- `npm run lint -- app lib hooks/use-gym-storage.ts components/gym-features.tsx components/gym-customizer.tsx components/gym-example-dialog.tsx workers db drizzle.config.ts tests` — authored code. The untouched starter component library has separate baseline lint findings.
-- `npm run build`
-- `node --experimental-strip-types tests/api-smoke.mjs` against the local production Worker — private persistence, concurrent-write rejection, image round-trip, ownership isolation, workout records, and invalid requests.
+**Stack:** TypeScript · React 19 · Babylon.js · Tailwind CSS · Vinext / Vite · Cloudflare Workers, D1 and R2 · Drizzle schema/migrations · Node test runner · Oxlint / Oxfmt.
 
-Desktop Chromium and phone-sized Chromium touch emulation were checked using isolated local test accounts, including drag/drop, preview cancellation, overlap prevention, trash/Undo, two-finger gestures, room resizing and rendering. Physical iPhone Safari testing remains outstanding. Asset provenance is in [docs/assets.md](docs/assets.md).
+[Architecture and trade-offs →](docs/architecture.md)
+
+## Verify the project
+
+```bash
+npm run check      # formatting, strict types, lint, unit/geometry tests
+npm run build      # browser bundles and production Worker
+npm run test:api   # isolated local D1/R2 integration tests; cleans up afterwards
+```
+
+GitHub Actions runs the same commands on pushes and pull requests. There are no cloud credentials in CI. [Testing scope and limitations →](docs/testing.md)
+
+## What's next
+
+Physical iPhone Safari testing, accessible alternatives to more canvas interactions, and a verified equipment catalogue are the next priorities. Exact manufacturer meshes, automatic exact-machine identification, public visitor links, and arbitrary floor plans are **not implemented**. Equipment geometry is an original visual approximation, not a purchasing or architectural specification. See the [prioritised roadmap](docs/roadmap.md).
+
+## Project notes
+
+- [User guide](docs/user-guide.md) — controls and current feature boundaries.
+- [Equipment research](docs/equipment-research.md) — primary-source examples from 23 gym chains and destinations.
+- [Asset provenance](docs/assets.md) — procedural equipment, generated mural, and attributed reflections.
+- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+Built by **[Phillip Vedder](https://github.com/PhillipVedder)** through iterative, AI-assisted development. This repository records the implementation, design decisions, tests, and remaining limitations.
+
+Original project code is published for review with **all rights reserved**; it is not MIT-licensed. Third-party components and assets retain their own licences. See [LICENSE](LICENSE).

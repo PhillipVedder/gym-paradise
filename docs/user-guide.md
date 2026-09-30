@@ -1,0 +1,48 @@
+# User guide
+
+## Room customisation update
+
+- Dimensions: width and length 6–500 m, height 3.5–10 m. Resizing never removes machines; invalid shrinks are rejected. Placement, walking and the camera use the current dimensions.
+- Four adjustable visual presets: After hours, Bright club, Orange iron and Electric blue.
+- Industrial, tiled or open ceilings; suspended LED frames, strips or white panels; accent colour and brightness; optional daylight window panels.
+- Individual wall colours, paint/concrete/brick surfaces, rubber/concrete flooring, floor colour and seams, a mirror on any one wall.
+- Uploadable mural moved to any wall with width, height and vertical-position controls; images fit within the chosen bounds while preserving their original aspect ratio; a custom wall sign with text, colour and wall choice.
+- Movable, resizable coloured turf; default and per-piece frame/upholstery colours. Boxing ring, heavy bag stand, plyometric boxes and accessory storage added.
+- Customisation is validated in browser and Worker, saved with the gym, included in undo/redo and retained in portable layout exports. Existing private media remains account-bound.
+- The Sketchfab creator supplied by the user is documented under Research. Two relevant candidates are not downloadable and return no licence in the public API; no files from that collection are bundled.
+
+The current room remains rectangular, with one mural, one mirror wall and one turf lane. Window panels provide a visual daylight treatment, not openings to a navigable outside world. These controls do not yet include arbitrary floor plans, multiple storeys or custom imported 3D assets.
+
+## Example gym
+
+Choose **Example gym** in the equipment library, then **Load example gym**. Paradise showcase is a 32 × 36 m warehouse with all 36 catalogue types, 38 pieces including three benches, six training zones, a clear central walkway, a sled lane, purple lighting and a mirrored mural wall. The dialog includes a floor-plan preview and a portable example download. Loading uses normal layout history and cloud saves; Undo restores the previous layout during the session. Collection and workout data is preserved.
+
+## Camera and placement controls
+
+- Build has visible Orbit and Pan tools. Pan moves the view without changing its angles. Two fingers pan/pinch on touch screens; right-drag, Shift-drag or Space-drag pans on a laptop. Scroll zooms toward the cursor; resizing the browser preserves the zoom. Reset view restores the room framing.
+- Drag from the phone catalogue vertically; horizontal swipes continue to browse it. A green footprint marks valid placement, red marks overlaps or room boundaries. Drops outside the canvas discard a new preview; cancelled existing drags restore their original position.
+- Tap a card to preview, tap/drag on the floor to position, then Place. With the canvas focused, arrows move a preview by 0.5 m, R rotates, Enter places and Escape cancels.
+- Rendering uses corrected HiDPI scaling, filtered subtle floor textures, bounded render resolution and balanced lighting to reduce grain and shimmer.
+
+## Current experience
+
+- 36 original approximate equipment types, covering strength, cables, free weights, cardio and functional training. Searchable catalogue, up to 40 placements; drag a translucent 3D preview from the library, drop onto a clear floor position, or discard into the bin. Tap-to-preview, Place/Rotate/Cancel and keyboard placement are also available. Existing pieces can be dragged into the bin; undo/redo restores changes.
+- Warehouse, original comic mural, mirror wall, physically based metal/upholstery materials, studio reflections, shadow maps, lighting themes, floor and frame finishes, and private custom wall art.
+- First-person keyboard/touch walking with collision checks. Tap nearby equipment to open its training log.
+- A private photo collection with exact real-world brand/model notes and source links. Wishlist records stay linked to similar 3D representations.
+- On-demand Tesseract OCR and optional CLIP machine-category suggestions in a browser worker. Model downloads happen only when requested. User confirmation is required; no exact SKU or licensed-mesh search is fabricated. No paid AI API key is needed.
+- Workout records, date, kg/lb, reps, exercise/settings, last set, maximum logged load, daily load chart and JSON export. Comparisons stay within machine, exercise and unit.
+- D1 saves for layout, collection and training; R2 private photo bytes with ownership metadata. The trusted Sites user header scopes every request. Optimistic revisions reject concurrent overwrites. Browser storage holds recoverable drafts and supports migration from the previous local layout.
+- Photos, clean first-person tour mode, and capability-detected video downloads (up to 60 seconds; MP4/WebM depending on browser). Manual screen recording remains the fallback.
+- Shareable layout files strip private photo and collection references. Separate private account backups preserve records and account-bound image references.
+- In-app Research tab and [equipment benchmark](equipment-research.md) cover 23 gym chains/destinations, with primary sources and explicit inventory limitations.
+
+## Current boundaries
+
+These are improved original visual approximations, not verified manufacturer replicas or accurate purchasing footprints. Automatic exact-machine identification and licensed exact-model retrieval need a verified brand/model catalogue and an asset pipeline. Account-authenticated Sketchfab candidates are documented, but no third-party machine model is bundled. Public visitor links, social profiles and published tour feeds are not enabled. The hosted site remains private.
+
+Cloud saves load when the app opens. An open second device detects conflicting writes instead of silently overwriting them; refresh to read its newest cloud save. Keep a private backup before replacing a conflicting draft. Videos are exported, not retained in a cloud gallery. A private backup references images in the same account; it does not embed their bytes.
+
+Real iPhone validation is still required for graphics speed, memory pressure, camera formats, OCR / CLIP downloads, and Safari MediaRecorder. Static checks and local API tests do not establish device compatibility. The CLIP worker and its approximately 22.5 MB WASM runtime are lazy loaded; model weights require a substantial separate first download. Weak devices may need manual type selection. Research confirms published examples, not every branch's complete inventory or commercial success.
+
+For setup and verification, see [Development](development.md) and [Testing](testing.md).

@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible problem in Gym Paradise.
+title: 'Bug: '
+body:
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: What happened?
+      description: Describe the actual and expected behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the build or commit, and whether this is the local demo or hosted app.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device and browser
+      placeholder: 'MacBook / Chrome version, or iPhone model / iOS version'
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or additional context
+      description: Remove private photos, account backups and personal training data before uploading.

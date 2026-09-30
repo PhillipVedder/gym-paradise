@@ -99,7 +99,9 @@ r = await fetch(base + '/api/media', {
 });
 assert.equal(r.status, 201);
 const media = await r.json();
-assert.equal((await req(media.url, alice)).status, 200);
+const storedImage = await req(media.url, alice);
+assert.equal(storedImage.status, 200);
+assert.deepEqual(Buffer.from(await storedImage.arrayBuffer()), png);
 assert.equal((await req(media.url, bob)).status, 404);
 assert.equal((await req(media.url, null)).status, 401);
 state.layout.muralId = media.id;
